@@ -320,6 +320,93 @@
 
 ---
 
+## Entry 2 - 2026-09-11 16:31-16:50 EEST (13:31-13:50 UTC)
+
+### Scope
+
+- Purpose: restore the application runtime and the public NGINX request path while keeping the database and cache repair as a separate, reviewable change.
+- Files changed: `Dockerfile`, `app/server.py`, `docker-compose.yml`, and `nginx/nginx.conf`.
+- This entry verifies application liveness and proxy load balancing. It does not claim that PostgreSQL or Redis connectivity is fixed.
+
+### Fixes applied
+
+- Replaced the Flask development server with Gunicorn and used the application factory `app.server:create_app()`.
+- Ran the application as the unprivileged `app` user and stopped copying `config/app.env` into the image.
+- Bound the application to `0.0.0.0:8080` so it is reachable through the Compose network.
+- Changed the app health check from nonexistent `/healthz` to the liveness endpoint `/health`.
+- Corrected `app-02`'s `INSTANCE_ID` and the `app-01` NGINX upstream port.
+- Corrected the NGINX publication from host `127.0.0.1:8080` to container port 80.
+- Replaced connection-URL logging with safe booleans indicating only whether each variable is configured.
+
+### Verification commands
+
+```bash
+git diff --check
+docker compose -p barq-assessment config --quiet
+source .venv/bin/activate
+python -m unittest discover -s tests -v
+docker compose -p barq-assessment up --build -d
+docker compose -p barq-assessment ps -a
+
+docker exec nginx wget -S -O - http://app-01:8080/health
+docker exec nginx wget -S -O - http://app-02:8080/health
+
+docker exec app-01 sh -c \
+  'if [ -e /srv/app.env ]; then echo "FAIL: app.env exists"; exit 1; else echo "PASS: app.env absent"; fi'
+
+if docker compose -p barq-assessment logs --no-color app-01 app-02 | \
+  grep -Eq 'postgresql://|redis://'; then
+  echo "FAIL: connection URL found in logs"
+else
+  echo "PASS: no connection URLs in logs"
+fi
+
+for i in {1..20}; do
+  curl -sS --max-time 3 http://127.0.0.1:8080/instance |
+    python -c 'import json, sys; print(json.load(sys.stdin)["instance_id"])'
+done | sort | uniq -c
+```
+
+### Actual results
+
+- All 8 supplied unit tests passed.
+- `app-01`, `app-02`, PostgreSQL, and Redis reported healthy; NGINX was running and exposed only as `127.0.0.1:8080->80/tcp`.
+- NGINX reached both application services on port 8080. Each returned HTTP 200 from Gunicorn with the correct instance identity.
+- Public `/`, `/health`, and `/instance` requests returned HTTP 200 through NGINX.
+- Twenty public `/instance` requests reached both backends:
+
+  ```text
+  15 app-01
+   5 app-02
+  ```
+
+- `/srv/app.env` was absent from the application image.
+- The application logs contained no PostgreSQL or Redis connection URLs.
+
+### Diagnosis-to-evidence mapping
+
+| Baseline fault | Applied correction | Retest evidence |
+| --- | --- | --- |
+| App bound only to container loopback | Bind Gunicorn to `0.0.0.0:8080` | NGINX reached both apps and received HTTP 200 |
+| NGINX published to unused port 81 | Publish host 8080 to NGINX port 80 | Public endpoints returned HTTP 200 |
+| `app-01` upstream used port 8081 | Use port 8080 for both upstreams | Both direct upstream health requests succeeded |
+| Health check requested `/healthz` | Check `/health` | Both app containers became healthy |
+| Both services identified as `app-01` | Set the second ID to `app-02` | Load-balancing sample contained both identities |
+| Development server ran as root | Use Gunicorn as user `app` | Container process inspection showed UID 10001 and Gunicorn workers |
+| Configuration file was copied into the image and URLs were logged | Remove the copy and log only configured/not-configured booleans | `/srv/app.env` was absent and the connection-URL log scan passed |
+
+### Failed or limited verification attempt
+
+- Three initial public requests all happened to reach `app-01`. That sample proved the proxy path but was too small to demonstrate load balancing. Increasing the sample to 20 requests showed both `app-01` and `app-02`. The uneven 15/5 result is sufficient to prove that both backends receive traffic; with multiple NGINX workers and a short sample, it should not be treated as a precise traffic-distribution measurement.
+
+### Remaining work
+
+- `/ready`, `/records`, and `/counter` still return HTTP 503 because the PostgreSQL and Redis connection settings remain intentionally unfixed for the next focused change.
+- Persistence, network isolation, prohibited dependency port declarations, restart policies, resource limits, NGINX health/failover behavior, backup/restore, CI, and failure demonstrations remain pending.
+- Related commit: the commit containing this entry, `fix: restore app and nginx connectivity`.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.

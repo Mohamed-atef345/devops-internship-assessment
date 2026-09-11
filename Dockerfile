@@ -5,7 +5,6 @@ RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --no-create-home a
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 COPY --chown=app:app app/ ./app/
-COPY config/app.env /srv/app.env
-USER root
+USER app
 EXPOSE 8080
-CMD ["python", "-m", "app.server"]
+CMD ["sh", "-c", "exec gunicorn -w 2 -b \"${APP_HOST:-0.0.0.0}:${APP_PORT:-8080}\" \"app.server:create_app()\""]
