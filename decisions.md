@@ -20,6 +20,15 @@ Record at least 5 decisions. Include assumptions and limits.
 - Evidence / commit: both app containers became healthy through `/health` while `/ready` accurately reported unavailable dependencies; `fix: restore app and nginx connectivity`.
 - Production improvement: use an orchestrator that treats liveness and readiness as separate probes and removes unready instances from service without unnecessary restarts.
 
+## Decision 3 - Inject the lab credential from an ignored local environment file
+
+- Choice: keep the synthetic PostgreSQL password in the ignored root `.env`, provide only a safe placeholder in `.env.example`, and use Compose interpolation to supply consistent connection settings to PostgreSQL and both app instances.
+- Why: one local source prevents password mismatches while keeping the active value out of the current image, source files, and Compose definition.
+- Alternative: retain the tracked `config/app.env` and duplicate the password in the PostgreSQL service, which caused configuration drift and exposed the value in the repository.
+- Trade-off: Compose environment variables remain visible to users with Docker inspection access, and passwords containing URL-reserved characters would require correct URL encoding.
+- Evidence / commit: `.env` is ignored, `config/app.env` is removed from the current tree, and real `/ready`, `/records`, and `/counter` operations succeed; `fix: restore database and cache connectivity`.
+- Production improvement: use a deployment secret store or mounted secret with access controls and rotation instead of a local environment file.
+
 ## Decision
 - Choice:
 - Why:

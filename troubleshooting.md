@@ -407,6 +407,84 @@ done | sort | uniq -c
 
 ---
 
+## Entry 3 - 2026-09-12 18:02-18:16 EEST (15:02-15:16 UTC)
+
+### Scope
+
+- Purpose: restore real PostgreSQL and Redis connectivity through both application instances and remove the tracked runtime connection file from the current project state.
+- Files changed: `.env.example`, `config/app.env`, and `docker-compose.yml`.
+- Persistence, host-port removal, and network isolation are intentionally outside this change and remain separate milestones.
+
+### Symptoms and hypothesis
+
+- `/ready` previously returned HTTP 503 with both dependencies unavailable; `/records` and `/counter` returned dependency-specific 503 responses.
+- The application connection configuration targeted nonstandard internal ports, and the PostgreSQL password did not match the database service configuration.
+- Hypothesis: using Compose service names with their real container ports and one shared local PostgreSQL configuration would restore both dependencies.
+
+### Fixes applied
+
+- Removed the tracked `config/app.env` file and stopped using it as an application `env_file`.
+- Added safe variable names and a placeholder password to `.env.example`; the real synthetic lab value remains only in the ignored local `.env` file.
+- Constructed `DATABASE_URL` from the local PostgreSQL variables and used the service address `postgres:5432`.
+- Set `REDIS_URL` to the service address `redis:6379/0`.
+- Configured the PostgreSQL service and application URL from the same user, database, and password variables, eliminating the mismatch.
+
+### Verification commands
+
+```bash
+git check-ignore -v .env
+docker compose -p barq-assessment config --quiet
+git diff --check
+source .venv/bin/activate
+python -m unittest discover -s tests -v
+docker compose -p barq-assessment up --build -d --force-recreate \
+  postgres redis app-01 app-02 nginx
+docker compose -p barq-assessment ps -a
+
+docker exec app-01 python -c \
+  'import urllib.request; r=urllib.request.urlopen("http://127.0.0.1:8080/ready", timeout=5); print(r.status, r.read().decode())'
+docker exec app-02 python -c \
+  'import urllib.request; r=urllib.request.urlopen("http://127.0.0.1:8080/ready", timeout=5); print(r.status, r.read().decode())'
+
+curl -i --max-time 5 http://127.0.0.1:8080/ready
+curl -i --max-time 5 \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"PostgreSQL connectivity proof"}' \
+  http://127.0.0.1:8080/records
+curl -i --max-time 5 http://127.0.0.1:8080/records
+curl -i --max-time 5 http://127.0.0.1:8080/counter
+curl -i --max-time 5 http://127.0.0.1:8080/counter
+```
+
+### Actual results
+
+- `.env` was confirmed ignored by the repository's `.gitignore`.
+- Compose validation and `git diff --check` completed without errors, and all 8 supplied unit tests passed.
+- Both application instances returned HTTP 200 from their own `/ready` endpoints with PostgreSQL and Redis reported as `ready`.
+- The public `/ready` endpoint returned HTTP 200 through NGINX.
+- POST `/records` returned HTTP 201 and created record ID 3 with the synthetic title `PostgreSQL connectivity proof`; the following GET `/records` returned that record with the two initialized records.
+- Two public `/counter` calls returned HTTP 200 and values 1 then 2, proving a real shared Redis increment.
+- `docker compose ps -a` showed both apps, PostgreSQL, and Redis healthy. Only NGINX had an active host publication in that runtime output.
+
+### Failed attempts and new observation
+
+- Fresh application logs revealed `Control server error: Permission denied: '/home/app'` from Gunicorn. Requests and health checks still succeeded, so this did not invalidate the database/cache connectivity evidence. It is a separate unresolved runtime warning: Gunicorn 26.2 attempts to create its default control socket below the configured user's home, while the image creates that user with `--no-create-home`.
+
+### Root cause and conclusion
+
+- Root cause: the app used incorrect internal ports for both dependencies, PostgreSQL credentials were inconsistent between the app and database, and the connection file was tracked instead of being supplied locally.
+- Conclusion: real PostgreSQL and Redis operations now succeed through both app configuration and the public NGINX path. This entry does not prove data persistence across container recreation.
+- Related commit: the commit containing this entry, `fix: restore database and cache connectivity`.
+
+### Remaining work
+
+- Resolve and retest the Gunicorn control-socket permission warning before treating application startup logs as clean.
+- Correct PostgreSQL and Redis persistence and prove survival across container recreation.
+- Remove prohibited PostgreSQL and Redis host-port declarations and enforce the required frontend/backend network isolation.
+- Restart policies, resource limits, NGINX health/failover behavior, validation and failure scripts, backup/restore, CI, architecture, log analysis, and final evidence remain pending.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.
