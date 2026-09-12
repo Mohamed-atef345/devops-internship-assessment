@@ -38,6 +38,15 @@ Write None if no AI was used. Otherwise record each use:
 - How you independently verified it: reviewed the candidate's diff and timestamped outputs, including network membership, absence of dependency host bindings, failed NGINX-to-dependency resolution, successful readiness from both apps, and successful public health/readiness.
 - Related commit: `fix: enforce service network isolation`.
 
+## Use 5 - Persistence test guidance and documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: provide commands to test the candidate's PostgreSQL and Redis persistence fix and update the documentation from the resulting evidence.
+- Files or decisions affected: `troubleshooting.md`, `decisions.md`, `security_review.md`, and `AI_USAGE.md` only.
+- What you changed or rejected: the assistant provided the persistence test commands and updated documentation only. The candidate independently changed `docker-compose.yml`, executed the commands, diagnosed the initially unset proof-title variable, and completed the persistence verification.
+- How you independently verified it: reviewed the candidate's Compose diff and timestamped outputs showing the correct mounts and Redis settings, PostgreSQL record creation, Redis counter value before recreation, forced container recreation without volume deletion, the surviving record, the continuing counter, healthy services, and successful readiness.
+- Related commit: `fix: persist database and cache data`.
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:

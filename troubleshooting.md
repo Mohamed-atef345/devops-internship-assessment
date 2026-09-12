@@ -630,6 +630,104 @@ curl -i --max-time 5 http://127.0.0.1:8080/ready
 
 ---
 
+## Entry 6 - 2026-09-12 18:54-19:12 EEST (15:54-16:12 UTC)
+
+### Scope
+
+- Purpose: configure durable PostgreSQL and Redis storage and prove that real application data survives container recreation.
+- File changed: `docker-compose.yml`.
+- This test recreates containers while deliberately retaining named volumes; it is not the separate backup/restore deliverable.
+
+### Symptoms and hypothesis
+
+- PostgreSQL previously stored its active data directory in `tmpfs`, while the named volume was mounted at an unused backup path.
+- Redis explicitly disabled both snapshotting and append-only persistence and had no data volume.
+- Hypothesis: mounting the PostgreSQL named volume at its real data directory and enabling Redis AOF on a named `/data` volume would preserve both data stores across container replacement.
+
+### Fixes applied
+
+- Mounted `postgres-data` at `/var/lib/postgresql/data` and removed the PostgreSQL data-directory `tmpfs`.
+- Enabled Redis append-only persistence with `appendonly yes` and `appendfsync everysec`.
+- Mounted a new named `redis-data` volume at `/data` and declared it in the top-level volume list.
+
+### Commands used for the persistence proof
+
+```bash
+docker compose -p barq-assessment up -d --force-recreate \
+  postgres redis app-01 app-02 nginx
+docker compose -p barq-assessment ps -a
+curl -i --max-time 5 http://127.0.0.1:8080/ready
+
+docker exec redis redis-cli CONFIG GET appendonly
+docker exec redis redis-cli CONFIG GET appendfsync
+
+PERSISTENCE_PROOF_TITLE="Persistence proof $(date -u +%Y%m%dT%H%M%SZ)"
+echo "$PERSISTENCE_PROOF_TITLE"
+curl -i --max-time 5 \
+  -H 'Content-Type: application/json' \
+  --data "$(printf '{"title":"%s"}' "$PERSISTENCE_PROOF_TITLE")" \
+  http://127.0.0.1:8080/records
+
+REDIS_COUNTER_BEFORE=$(
+  curl -fsS --max-time 5 http://127.0.0.1:8080/counter |
+    python -c 'import json,sys; print(json.load(sys.stdin)["counter"])'
+)
+echo "Redis counter before recreation: $REDIS_COUNTER_BEFORE"
+sleep 2
+
+docker compose -p barq-assessment up -d --force-recreate \
+  postgres redis app-01 app-02 nginx
+docker compose -p barq-assessment ps -a
+curl -i --max-time 5 http://127.0.0.1:8080/ready
+
+curl -fsS --max-time 5 http://127.0.0.1:8080/records |
+  python -c '
+import json
+import sys
+expected = sys.argv[1]
+titles = [record["title"] for record in json.load(sys.stdin)["records"]]
+if expected not in titles:
+    raise SystemExit("FAIL: PostgreSQL record did not survive")
+print("PASS: PostgreSQL record survived:", expected)
+' "$PERSISTENCE_PROOF_TITLE"
+
+REDIS_COUNTER_AFTER=$(
+  curl -fsS --max-time 5 http://127.0.0.1:8080/counter |
+    python -c 'import json,sys; print(json.load(sys.stdin)["counter"])'
+)
+echo "Redis counter after recreation: $REDIS_COUNTER_AFTER"
+if [ "$REDIS_COUNTER_AFTER" -eq "$((REDIS_COUNTER_BEFORE + 1))" ]; then
+  echo "PASS: Redis counter survived and continued"
+else
+  echo "FAIL: Redis counter did not continue"
+fi
+```
+
+### Actual results
+
+- After applying the storage configuration, PostgreSQL progressed from `health: starting` to `healthy`; both apps and Redis were also healthy, and public `/ready` returned HTTP 200.
+- Runtime inspection confirmed `postgres-data` at `/var/lib/postgresql/data`, `redis-data` at `/data`, and no PostgreSQL data-directory tmpfs. The unfiltered inspection output is intentionally not reproduced because it also contained runtime environment values.
+- Redis reported `appendonly yes` and `appendfsync everysec`.
+- The successful POST created record ID 3 with title `Persistence proof 20260912T160449Z`.
+- Before recreation, the Redis counter value was 1. A two-second delay allowed the `everysec` AOF policy to flush.
+- All five service containers were force-recreated without removing either named volume. They returned healthy and public `/ready` returned HTTP 200 afterward.
+- The PostgreSQL check printed `PASS: PostgreSQL record survived: Persistence proof 20260912T160449Z`.
+- The first Redis request after recreation returned 2, exactly one greater than the saved value, and printed `PASS: Redis counter survived and continued`.
+
+### Root cause and conclusion
+
+- Root cause: the PostgreSQL volume did not cover the active database directory, tmpfs discarded that directory on container replacement, and Redis persistence was explicitly disabled with no persistent mount.
+- Retest evidence proves both a PostgreSQL record and the Redis counter survived real container recreation using their named volumes.
+- Related commit: the commit containing this entry, `fix: persist database and cache data`.
+
+### Remaining work
+
+- Implement and prove the separate PostgreSQL backup and restore workflow.
+- Add restart policies, resource limits, NGINX health and bounded failover behavior.
+- Validation and failure scripts, CI, architecture, historical log analysis, final README, and evidence index remain pending.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.

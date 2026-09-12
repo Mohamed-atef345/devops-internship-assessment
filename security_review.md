@@ -51,6 +51,15 @@ This is a review requirement, not the number of hidden faults.
 - Production follow-up: apply default-deny network policies with explicit service-to-service rules and alert on unexpected east-west connections.
 - How to verify: inspect each container's networks, confirm NGINX cannot resolve or connect to `postgres:5432` and `redis:6379`, then confirm both apps still report both dependencies ready.
 
+## Finding 7 - Database and cache state was ephemeral
+
+- Risk and evidence: PostgreSQL used tmpfs for its active data directory while its named volume targeted an unused path; Redis disabled persistence and had no data volume.
+- Impact: container recreation or host maintenance could silently erase application records and counter state.
+- Implemented fix / commit: mount PostgreSQL's active data path on `postgres-data`, remove its tmpfs, enable Redis AOF with `everysec`, and mount `redis-data` at `/data`; `fix: persist database and cache data`.
+- Production follow-up: use storage appropriate to recovery objectives, monitor disk health and capacity, and maintain tested off-host backups. Named volumes alone are not backups.
+- How to verify: create unique database/cache state, recreate all relevant containers without removing volumes, and require explicit PASS results for the surviving record and continuing counter.
+
+
 For each finding:
 - Risk and evidence:
 - Impact:

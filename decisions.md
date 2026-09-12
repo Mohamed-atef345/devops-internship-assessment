@@ -47,6 +47,15 @@ Record at least 5 decisions. Include assumptions and limits.
 - Evidence / commit: network inspection matches the required topology, only NGINX has a host binding, NGINX cannot resolve the dependencies, and both apps remain ready; `fix: enforce service network isolation`.
 - Production improvement: enforce equivalent network policies and ingress restrictions in the deployment platform and monitor denied connection attempts.
 
+## Decision 6 - Use named volumes with PostgreSQL-native and Redis AOF storage paths
+
+- Choice: mount `postgres-data` at `/var/lib/postgresql/data`; enable Redis AOF with an `everysec` fsync policy and mount `redis-data` at `/data`.
+- Why: each service writes directly to durable named storage at the path expected by its official image, allowing data to survive disposable container replacement.
+- Alternative: retain PostgreSQL tmpfs and disabled Redis persistence, which is faster for temporary tests but intentionally loses state on recreation.
+- Trade-off: persistent writes use disk and Redis `everysec` can lose approximately the most recent second during a sudden host failure; named volumes also require explicit lifecycle and backup management.
+- Evidence / commit: a uniquely titled PostgreSQL record and Redis counter both survived forced recreation of the data and application containers; `fix: persist database and cache data`.
+- Production improvement: select storage performance and durability classes from measured requirements, monitor capacity and latency, and use tested backup, restore, and retention policies.
+
 ## Decision
 - Choice:
 - Why:
