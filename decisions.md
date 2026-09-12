@@ -56,6 +56,24 @@ Record at least 5 decisions. Include assumptions and limits.
 - Evidence / commit: a uniquely titled PostgreSQL record and Redis counter both survived forced recreation of the data and application containers; `fix: persist database and cache data`.
 - Production improvement: select storage performance and durability classes from measured requirements, monitor capacity and latency, and use tested backup, restore, and retention policies.
 
+## Decision 7 - Apply uniform restart policy with service-specific limits
+
+- Choice: use `unless-stopped` for every long-running service, with CPU/memory limits sized by role rather than one identical limit.
+- Why: unexpected process exits can recover automatically, deliberate failure-test stops remain stopped, and one service cannot consume all workstation resources.
+- Alternative: use `always`, which can conflict with deliberate operator stops, or retain no restart/limits, which provides fewer availability and resource safeguards.
+- Trade-off: restart policy does not remediate a running but unhealthy container, and limits selected for this small assessment require measurement before production use.
+- Evidence / commit: Docker inspection showed `unless-stopped` plus non-zero memory and NanoCPU limits on all five containers; `fix: harden service availability and failover`.
+- Production improvement: tune requests/limits from observed utilization and use an orchestrator with separate liveness, readiness, restart-backoff, and disruption controls.
+
+## Decision 8 - Bound NGINX retry and temporary backend failure handling
+
+- Choice: retry only connection/proxy failures across at most two upstream attempts within four seconds, with per-operation timeouts and five-second failure windows.
+- Why: one stopped backend should not interrupt service or leave clients waiting indefinitely, while a recovered backend should rejoin quickly.
+- Alternative: disable retries, which exposed single-backend failures, or retry broadly without limits, which can amplify latency and duplicate unsafe operations.
+- Trade-off: `max_fails=3` tolerates transient errors but can cause several retries before a backend is temporarily avoided; shared dependency failures are not solved by another app instance.
+- Evidence / commit: all requests during the `app-01` stop were served by `app-02`, NGINX remained healthy, and both identities appeared after recovery; `fix: harden service availability and failover`.
+- Production improvement: use measured latency/error budgets, passive and active health telemetry, and load testing to tune thresholds.
+
 ## Decision
 - Choice:
 - Why:

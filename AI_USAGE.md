@@ -47,6 +47,15 @@ Write None if no AI was used. Otherwise record each use:
 - How you independently verified it: reviewed the candidate's Compose diff and timestamped outputs showing the correct mounts and Redis settings, PostgreSQL record creation, Redis counter value before recreation, forced container recreation without volume deletion, the surviving record, the continuing counter, healthy services, and successful readiness.
 - Related commit: `fix: persist database and cache data`.
 
+## Use 6 - Availability-hardening review and documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: update documentation from the candidate's evidence.
+- Files or decisions affected: `troubleshooting.md`, `decisions.md`, `security_review.md`, and `AI_USAGE.md` only.
+- What you changed or rejected: the assistant updated documentation only. The candidate independently changed `docker-compose.yml` and `nginx/nginx.conf`, executed the failure/recovery checks, and supplied the timestamped outputs for review.
+- How you independently verified it: reviewed the implementation diff and outputs for NGINX syntax, effective restart/resource values, public health/readiness, NGINX health during an app outage, uninterrupted traffic through the surviving app, and traffic through both apps after recovery.
+- Related commit: `fix: harden service availability and failover`.
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:

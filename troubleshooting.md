@@ -728,6 +728,91 @@ fi
 
 ---
 
+## Entry 7 - 2026-09-12 19:24-19:40 EEST (16:24-16:40 UTC)
+
+### Scope
+
+- Purpose: add restart policies, CPU/memory limits, an NGINX health check, and bounded upstream failure handling; then prove continued service with one app stopped and recovery after it returns.
+- Files changed: `docker-compose.yml` and `nginx/nginx.conf`.
+- This is a manual availability verification. The required reusable `failure_test.py` and its traffic/error measurements remain a separate deliverable.
+
+### Baseline risks and hypothesis
+
+- All services previously used restart policy `no`, resource limits were unset, and NGINX had no container health check.
+- NGINX disabled upstream failure tracking with `max_fails=0` and disabled retry with `proxy_next_upstream off`.
+- Hypothesis: bounded retry across two upstreams, temporary failure tracking, and an end-to-end NGINX health check would preserve public availability when one app is deliberately stopped.
+
+### Fixes applied
+
+- Set `restart: unless-stopped` on the shared app definition, NGINX, PostgreSQL, and Redis.
+- Limited each app to 0.50 CPU and 256 MiB, NGINX to 0.25 CPU and 128 MiB, PostgreSQL to 0.75 CPU and 512 MiB, and Redis to 0.25 CPU and 256 MiB.
+- Added an NGINX health check that requests `/health` through its local listener every five seconds.
+- Configured both app upstreams with `max_fails=3` and `fail_timeout=5s`.
+- Bounded upstream connection, send, and read waits to 1, 3, and 3 seconds respectively.
+- Enabled retry for connection errors, timeouts, HTTP 502, and HTTP 504; capped processing at two upstream attempts and four seconds total. Non-idempotent retry was not enabled.
+
+### Verification commands
+
+```bash
+docker compose -p barq-assessment up -d --force-recreate \
+  postgres redis app-01 app-02 nginx
+docker exec nginx nginx -t
+docker compose -p barq-assessment ps -a
+
+docker inspect \
+  --format '{{.Name}} restart={{.HostConfig.RestartPolicy.Name}} memory={{.HostConfig.Memory}} nano_cpus={{.HostConfig.NanoCpus}}' \
+  app-01 app-02 nginx postgres redis
+
+curl -i --max-time 5 http://127.0.0.1:8080/health
+curl -i --max-time 5 http://127.0.0.1:8080/ready
+
+docker stop app-01
+docker compose -p barq-assessment ps -a
+curl -fsS --max-time 5 http://127.0.0.1:8080/instance
+
+docker inspect \
+  --format 'nginx health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+  nginx
+
+docker start app-01
+docker compose -p barq-assessment ps -a
+curl -fsS --max-time 5 http://127.0.0.1:8080/instance
+```
+
+The `/instance` request was repeated while the backend was stopped and again after recovery.
+
+### Actual results
+
+- `nginx -t` reported valid syntax and a successful configuration test.
+- The first immediate Compose status showed normal `health: starting` states. Subsequent status output showed every service healthy.
+- Runtime inspection reported `unless-stopped` and the expected byte/NanoCPU limits for all five services:
+
+  ```text
+  app-01/app-02: memory=268435456 nano_cpus=500000000
+  nginx:         memory=134217728 nano_cpus=250000000
+  postgres:      memory=536870912 nano_cpus=750000000
+  redis:         memory=268435456 nano_cpus=250000000
+  ```
+
+- Before failure injection, public `/health` and `/ready` returned HTTP 200.
+- A deliberate `docker stop app-01` left that container exited, as expected for a manual stop under `unless-stopped`.
+- Six consecutive public `/instance` requests succeeded through `app-02`; NGINX remained healthy throughout the single-backend outage.
+- After `docker start app-01`, Compose showed it healthy. Repeated public requests then returned both `app-01` and `app-02`, proving recovery and reintegration.
+
+### Root cause and conclusion
+
+- Root cause: the supplied configuration had no lifecycle/resource guardrails and explicitly disabled NGINX failure tracking and retry.
+- Retest evidence proves bounded single-backend failover and recovery while preserving public liveness, readiness, and NGINX health.
+- Related commit: the commit containing this entry, `fix: harden service availability and failover`.
+
+### Remaining work
+
+- Implement `failure_test.py` to automate the outage, measure traffic and errors, restore the backend, and exit non-zero on failure.
+- Implement full validation, PostgreSQL backup/restore, CI, architecture, historical log analysis, final README, and evidence index.
+- The final video must still perform the one-time challenge, switch to port 8090, and add a third app instance.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.

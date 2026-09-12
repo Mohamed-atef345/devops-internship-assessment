@@ -59,6 +59,22 @@ This is a review requirement, not the number of hidden faults.
 - Production follow-up: use storage appropriate to recovery objectives, monitor disk health and capacity, and maintain tested off-host backups. Named volumes alone are not backups.
 - How to verify: create unique database/cache state, recreate all relevant containers without removing volumes, and require explicit PASS results for the surviving record and continuing counter.
 
+## Finding 8 - Services lacked restart and resource guardrails
+
+- Risk and evidence: the supplied services used restart policy `no` and had zero CPU/memory limits.
+- Impact: an unexpected exit could leave the stack unavailable, while runaway resource use could degrade or terminate unrelated services on the host.
+- Implemented fix / commit: apply `unless-stopped` and service-specific CPU/memory limits to all five services; `fix: harden service availability and failover`.
+- Production follow-up: derive limits from monitoring and load tests, add reservations where applicable, and use orchestrator restart backoff and alerting. Restart policy alone does not replace health remediation.
+- How to verify: inspect `.HostConfig.RestartPolicy`, `.HostConfig.Memory`, and `.HostConfig.NanoCpus` for every container and confirm values are non-zero and match the documented decision.
+
+## Finding 9 - Edge proxy had no health signal or bounded failover
+
+- Risk and evidence: NGINX had no health check, disabled upstream failure accounting, and disabled retry to the surviving app.
+- Impact: a single backend outage could surface avoidable errors, while operators and automation lacked a health signal for the public request path.
+- Implemented fix / commit: add an end-to-end NGINX health check, bounded timeouts and two-attempt retry, plus temporary upstream failure tracking; `fix: harden service availability and failover`.
+- Production follow-up: collect retry, upstream-error, saturation and latency metrics; alert on degraded redundancy; and use an orchestrator or external load balancer to remove unhealthy instances.
+- How to verify: validate NGINX syntax, stop one app, require successful traffic through the other while NGINX stays healthy, restore the app, and prove both identities serve again.
+
 
 For each finding:
 - Risk and evidence:
