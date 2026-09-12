@@ -29,6 +29,15 @@ Record at least 5 decisions. Include assumptions and limits.
 - Evidence / commit: `.env` is ignored, `config/app.env` is removed from the current tree, and real `/ready`, `/records`, and `/counter` operations succeed; `fix: restore database and cache connectivity`.
 - Production improvement: use a deployment secret store or mounted secret with access controls and rotation instead of a local environment file.
 
+## Decision 4 - Disable the unused Gunicorn control socket
+
+- Choice: pass `--no-control-socket` to Gunicorn while retaining the no-home, unprivileged `app` user.
+- Why: the assessment does not use Gunicorn's runtime control interface, and its default socket path caused a permission error below `/home/app`.
+- Alternative: create a writable home or runtime directory for the socket, which would add storage and permissions for an interface the service does not need.
+- Trade-off: runtime management through `gunicornc` is unavailable; normal process lifecycle remains managed by Docker Compose.
+- Evidence / commit: both app startup logs are free of the control-socket error, both containers are healthy, and public liveness/readiness remain HTTP 200; `fix: disable unused gunicorn control socket`.
+- Production improvement: if runtime control is later required, configure an explicit protected socket path and ownership rather than relying on a default home-directory fallback.
+
 ## Decision
 - Choice:
 - Why:

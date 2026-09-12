@@ -20,6 +20,15 @@ Write None if no AI was used. Otherwise record each use:
 - How you independently verified it: reviewed Compose variable flow without exposing the local password, confirmed the ignored `.env`, checked the supplied unit-test result, and reviewed successful `/ready`, PostgreSQL record creation/listing, Redis increments, container health, and application logs.
 - Related commit: `fix: restore database and cache connectivity`.
 
+## Use 3 - Gunicorn control-socket documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: update the documentation from the candidate's Gunicorn change and verification evidence.
+- Files or decisions affected: `troubleshooting.md`, `decisions.md`, `security_review.md`, and `AI_USAGE.md` only.
+- What you changed or rejected: the assistant updated documentation only. The candidate independently changed the `Dockerfile` and ran the build, health, log, and endpoint verification commands.
+- How you independently verified it: reviewed the candidate's one-line Dockerfile diff and timestamped outputs, then confirmed both apps were healthy, the control-socket error was absent from fresh logs, and public `/health` and `/ready` succeeded.
+- Related commit: `fix: disable unused gunicorn control socket`.
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:

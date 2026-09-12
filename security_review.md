@@ -27,6 +27,14 @@ This is a review requirement, not the number of hidden faults.
 - Production follow-up: use a managed secret store with rotation and audit controls. The supplied lab value remains in the required immutable starter history, so it must never be reused for a real system.
 - How to verify: `git check-ignore -v .env` identifies the ignore rule, the current tracked tree contains no active password, Compose validates quietly, and real dependency-backed endpoints succeed without exposing the value in saved evidence.
 
+## Finding 4 - Unused Gunicorn control interface caused a startup error
+
+- Risk and evidence: Gunicorn attempted to create its default control socket below `/home/app`, but the unprivileged user intentionally has no home directory. Both services logged a permission error even though request handling continued.
+- Impact: noisy startup errors can hide real failures, and creating a writable home solely to satisfy an unused management interface would unnecessarily expand the container's writable surface.
+- Implemented fix / commit: disable the unused control socket explicitly with `--no-control-socket`; `fix: disable unused gunicorn control socket`.
+- Production follow-up: if runtime control becomes an operational requirement, provide a deliberate runtime directory, restrictive socket permissions, and documented access controls.
+- How to verify: rebuild both apps, confirm their startup logs contain no `Control server error`, confirm both become healthy, and retest public `/health` and `/ready`.
+
 For each finding:
 - Risk and evidence:
 - Impact:

@@ -485,6 +485,65 @@ curl -i --max-time 5 http://127.0.0.1:8080/counter
 
 ---
 
+## Entry 4 - 2026-09-12 18:29-18:38 EEST (15:29-15:38 UTC)
+
+### Scope
+
+- Purpose: remove the Gunicorn control-socket startup error without changing application behavior.
+- File changed: `Dockerfile`.
+- This is a focused follow-up to the warning discovered during the database/cache connectivity verification.
+
+### Symptom and hypothesis
+
+- Symptom: both app containers served requests successfully, but each fresh Gunicorn startup logged `Control server error: Permission denied: '/home/app'`.
+- Root-cause hypothesis: Gunicorn 26.2 enables its control socket by default and falls back to a path below the configured user's home. The image deliberately creates the unprivileged `app` user with `--no-create-home`, so that location is unavailable.
+
+### Fix
+
+- Added `--no-control-socket` to the Gunicorn command.
+- The control interface is not used by this assessment, so disabling it removes the unnecessary writable-path requirement while retaining the non-root user and two-worker runtime.
+
+### Verification commands
+
+```bash
+docker compose -p barq-assessment up --build -d --force-recreate \
+  app-01 app-02 nginx
+docker compose -p barq-assessment ps -a
+docker compose -p barq-assessment logs \
+  --no-color --since=3m app-01 app-02
+
+if docker compose -p barq-assessment logs --no-color --since=3m app-01 app-02 |
+  grep -Fq "Control server error"; then
+  echo "FAIL: Gunicorn control socket error remains"
+else
+  echo "PASS: no Gunicorn control socket error"
+fi
+
+curl -i --max-time 5 http://127.0.0.1:8080/health
+curl -i --max-time 5 http://127.0.0.1:8080/ready
+```
+
+### Actual results
+
+- Both application images rebuilt and both app containers restarted successfully.
+- The first immediate `ps` check showed `health: starting`; after the health-check interval, both app containers reported `healthy`.
+- Fresh startup logs showed Gunicorn 26.2 listening on `0.0.0.0:8080` and booting two workers for each instance without the previous permission error.
+- The explicit log scan returned `PASS: no Gunicorn control socket error`.
+- Public `/health` returned HTTP 200 and `/ready` returned HTTP 200 with PostgreSQL and Redis both `ready`.
+
+### Conclusion
+
+- Root cause confirmed: an enabled but unused Gunicorn control socket required a writable home path that the intentionally no-home application user did not have.
+- Retest evidence confirms that disabling only this unused interface removes the error while preserving liveness and dependency readiness.
+- Related commit: the commit containing this entry, `fix: disable unused gunicorn control socket`.
+
+### Remaining work
+
+- PostgreSQL and Redis persistence, network isolation and prohibited dependency ports remain the next infrastructure milestones.
+- Restart policies, resource limits, NGINX health/failover behavior, validation and failure scripts, backup/restore, CI, architecture, log analysis, and final evidence remain pending.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.

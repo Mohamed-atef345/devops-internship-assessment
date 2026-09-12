@@ -7,4 +7,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY --chown=app:app app/ ./app/
 USER app
 EXPOSE 8080
-CMD ["sh", "-c", "exec gunicorn -w 2 -b \"${APP_HOST:-0.0.0.0}:${APP_PORT:-8080}\" \"app.server:create_app()\""]
+CMD ["sh", "-c", "exec gunicorn --no-control-socket -w 2 -b \"${APP_HOST:-0.0.0.0}:${APP_PORT:-8080}\" \"app.server:create_app()\""]
