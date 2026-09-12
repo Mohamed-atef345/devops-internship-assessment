@@ -56,6 +56,16 @@ Write None if no AI was used. Otherwise record each use:
 - How you independently verified it: reviewed the implementation diff and outputs for NGINX syntax, effective restart/resource values, public health/readiness, NGINX health during an app outage, uninterrupted traffic through the surviving app, and traffic through both apps after recovery.
 - Related commit: `fix: harden service availability and failover`.
 
+## Use 7 - Full-stack validation review, fixes and documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: review the candidate's initial `validate.py`, add missing assessment-required behavior, and update the related documentation.
+- Files or decisions affected: `validate.py`, `troubleshooting.md`, `decisions.md`, `docs/EVIDENCE_INDEX.md`, and `AI_USAGE.md`.
+- What you changed or rejected: the candidate wrote the initial validator. The assistant identified and directly fixed the missing bounded readiness wait, running-only backend discovery, fixed-port behavior, permissive NGINX binding check, missing essential response checks, and unbounded subprocess calls. Optional direct dependency commands, resource checks, and failure injection were deliberately excluded to keep validation minimal.
+- How you independently verified it: the candidate ran the final validator against the healthy stack and supplied output showing every check passed, both app identities were observed, a PostgreSQL record was created/retrieved, Redis increased from 15 to 16, and the final result passed. The assistant also ran Python compilation, a whitespace/diff check, a healthy exit-code test, and a harmless unused-port test that failed within its two-second bound with exit 1.
+- Documentation assistance: the assistant drafted the validation entry in `troubleshooting.md`, the validation decision in `decisions.md`, this disclosure, and the pending validation row in `docs/EVIDENCE_INDEX.md`; the candidate reviewed and retained responsibility for the submitted content.
+- Related commit: `test: add bounded full-stack validation` (the commit containing `validate.py` and these documentation updates).
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:

@@ -74,6 +74,15 @@ Record at least 5 decisions. Include assumptions and limits.
 - Evidence / commit: all requests during the `app-01` stop were served by `app-02`, NGINX remained healthy, and both identities appeared after recovery; `fix: harden service availability and failover`.
 - Production improvement: use measured latency/error budgets, passive and active health telemetry, and load testing to tune thresholds.
 
+## Decision 9 - Keep full-stack validation bounded and configuration-aware
+
+- Choice: implement one Python validator that discovers configured `app-*` services and the running NGINX port, performs bounded public API checks, proves real PostgreSQL/Redis operations, and inspects host ports and network membership.
+- Why: one reusable command provides the required PASS/FAIL evidence before and after the live change from two apps/port 8080 to three apps/port 8090 without duplicating validation logic.
+- Alternative: hard-code two backends and port 8080 or discover only running services, which is shorter but can fail after the final change or falsely pass when a configured backend is stopped.
+- Trade-off: validation requires Docker API access and intentionally adds one uniquely named PostgreSQL record plus two Redis counter increments on each successful run.
+- Evidence / commit: the healthy run passed every check and observed both app identities; an unused-port run failed within two seconds with exit 1; `test: add bounded full-stack validation`.
+- Production improvement: publish machine-readable test output and run the same checks from an external monitoring location with authenticated access rather than relying only on the local Docker socket.
+
 ## Decision
 - Choice:
 - Why:

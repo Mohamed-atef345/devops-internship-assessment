@@ -813,6 +813,63 @@ The `/instance` request was repeated while the backend was stopped and again aft
 
 ---
 
+## Entry 8 - 2026-09-12 approximately 20:03-21:08 EEST (17:03-18:08 UTC)
+
+### Scope
+
+- Purpose: replace the supplied `validate.py` placeholder with a minimal, bounded full-stack validator.
+- File changed: `validate.py`.
+- The validator checks the public API, real PostgreSQL and Redis operations, all configured application identities, prohibited host ports, and required network isolation.
+
+### Initial implementation and review findings
+
+- The candidate wrote the initial validator and ran it against the repaired stack.
+- Review found that readiness was attempted only once, so normal dependency startup could cause a false failure instead of using the required bounded wait.
+- Backend discovery used `docker compose ps --services`, which lists running services; a stopped app could disappear from the expected set and allow a false pass.
+- The original default did not automatically follow the required later move from port 8080 to 8090 because Python does not automatically load Compose's `.env` values.
+- The NGINX port check accepted any published binding rather than requiring the expected loopback-only binding.
+- The first version duplicated several endpoint requests and mixed `curl` with Python HTTP handling.
+
+### Fixes applied
+
+- Added readiness polling with short request timeouts and a fixed overall `--timeout` deadline.
+- Discover configured `app-*` services through `docker compose config --services`, including a configured backend that is currently stopped.
+- Discover the running NGINX port automatically while retaining explicit `--url` and `--project` overrides.
+- Require exactly one NGINX binding at `127.0.0.1:PUBLIC_PORT` and reject host bindings on the apps, PostgreSQL, or Redis.
+- Require exact frontend/backend network membership for each service role.
+- Consolidated HTTP status, JSON, request-ID, command-timeout, and failure handling into shared helpers and removed the `curl` dependency.
+- Kept the validator intentionally scoped: it creates one uniquely named record and increments the counter, but it does not stop containers, test failover, restore backups, or run the recorded challenge.
+
+### Verification commands
+
+```bash
+git diff --check
+python3 validate.py
+```
+
+### Actual results
+
+- The candidate's final healthy-stack run printed PASS for dependency readiness, both configured backends, `/`, `/health`, `/ready`, PostgreSQL record creation/retrieval, invalid-title handling, Redis, the unknown route, both observed identities, the loopback-only NGINX port, and network isolation.
+- That run observed Redis increasing from 15 to 16 and ended with `ALL VALIDATION CHECKS PASSED`.
+- The healthy run exited 0.
+- The harmless unused-port test stopped after the two-second deadline, printed `FAIL: dependencies were not ready within 2 seconds`, and exited 1.
+- Python compilation and `git diff --check` both succeeded.
+
+
+### Conclusion
+
+- The validator now provides bounded PASS/FAIL evidence for the minimum assessment requirements and returns a non-zero exit when a required condition is unavailable.
+- It discovers the configured app set and current NGINX port, so the same script can be rerun after the recorded change to three apps on port 8090.
+- Related commit: `test: add bounded full-stack validation` (the commit containing this entry and `validate.py`).
+
+### Remaining work
+
+- Commit the validator and this evidence as one cohesive validation milestone named `test: add bounded full-stack validation`.
+- Implement `failure_test.py`, PostgreSQL backup/restore, CI, historical-log analysis, final README, architecture, and final evidence links.
+- Rerun this validator during the final video after adding `app-03` and changing the public port to 8090.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.
