@@ -35,6 +35,22 @@ This is a review requirement, not the number of hidden faults.
 - Production follow-up: if runtime control becomes an operational requirement, provide a deliberate runtime directory, restrictive socket permissions, and documented access controls.
 - How to verify: rebuild both apps, confirm their startup logs contain no `Control server error`, confirm both become healthy, and retest public `/health` and `/ready`.
 
+## Finding 5 - PostgreSQL and Redis declared host publications
+
+- Risk and evidence: the supplied Compose file declared loopback host mappings for PostgreSQL and Redis even though only NGINX is intended to be published.
+- Impact: unnecessary host access increases the attack surface and enables clients on the workstation to bypass the application controls.
+- Implemented fix / commit: remove both dependency `ports` declarations so only NGINX is published; `fix: enforce service network isolation`.
+- Production follow-up: restrict database and cache ingress at the platform or firewall layer and use authenticated, audited administrative access when direct maintenance is required.
+- How to verify: `docker port` returns a host mapping only for NGINX, while app, PostgreSQL, and Redis return no mappings.
+
+## Finding 6 - NGINX had direct backend network access
+
+- Risk and evidence: NGINX was attached to the backend network in addition to frontend, allowing the public-facing proxy a direct path to PostgreSQL and Redis.
+- Impact: compromise or misconfiguration of the edge proxy could expose data services that it has no operational reason to contact.
+- Implemented fix / commit: make NGINX frontend-only while keeping apps on both networks and data services backend-only; `fix: enforce service network isolation`.
+- Production follow-up: apply default-deny network policies with explicit service-to-service rules and alert on unexpected east-west connections.
+- How to verify: inspect each container's networks, confirm NGINX cannot resolve or connect to `postgres:5432` and `redis:6379`, then confirm both apps still report both dependencies ready.
+
 For each finding:
 - Risk and evidence:
 - Impact:

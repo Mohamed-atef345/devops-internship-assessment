@@ -29,6 +29,15 @@ Write None if no AI was used. Otherwise record each use:
 - How you independently verified it: reviewed the candidate's one-line Dockerfile diff and timestamped outputs, then confirmed both apps were healthy, the control-socket error was absent from fresh logs, and public `/health` and `/ready` succeeded.
 - Related commit: `fix: disable unused gunicorn control socket`.
 
+## Use 4 - Network-isolation documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: update documentation from the candidate's network-isolation change and verification evidence.
+- Files or decisions affected: `troubleshooting.md`, `decisions.md`, `security_review.md`, and `AI_USAGE.md` only.
+- What you changed or rejected: the assistant updated documentation only. The candidate independently changed `docker-compose.yml` and ran all Compose, inspection, isolation, and endpoint verification commands.
+- How you independently verified it: reviewed the candidate's diff and timestamped outputs, including network membership, absence of dependency host bindings, failed NGINX-to-dependency resolution, successful readiness from both apps, and successful public health/readiness.
+- Related commit: `fix: enforce service network isolation`.
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:

@@ -544,6 +544,92 @@ curl -i --max-time 5 http://127.0.0.1:8080/ready
 
 ---
 
+## Entry 5 - 2026-09-12 18:44-18:49 EEST (15:44-15:49 UTC)
+
+### Scope
+
+- Purpose: enforce the required frontend/backend network boundary and remove prohibited host publications from PostgreSQL and Redis.
+- File changed: `docker-compose.yml`.
+- Persistence and service availability hardening remain separate milestones.
+
+### Symptoms and hypothesis
+
+- NGINX previously belonged to both `frontend` and `backend`, which gave the edge proxy unnecessary direct network access to PostgreSQL and Redis.
+- PostgreSQL and Redis declared loopback host-port mappings even though the assessment permits publishing only NGINX.
+- Hypothesis: making NGINX frontend-only and removing the two dependency port declarations would block both access paths without breaking app-to-dependency communication.
+
+### Fixes applied
+
+- Removed NGINX from the `backend` network while retaining its `frontend` membership.
+- Kept both app instances on `frontend` and `backend` so NGINX can reach them and they can reach the dependencies.
+- Kept PostgreSQL and Redis on the internal `backend` network only.
+- Removed the PostgreSQL and Redis host-port declarations. Their standard container ports remain available only to services sharing the backend network.
+
+### Verification commands
+
+```bash
+git diff --check
+docker compose -p barq-assessment config --quiet
+docker compose -p barq-assessment up -d --force-recreate \
+  postgres redis nginx
+docker compose -p barq-assessment ps -a
+
+for container in nginx app-01 app-02 postgres redis; do
+  docker inspect \
+    --format '{{.Name}}: {{range $name, $_ := .NetworkSettings.Networks}}{{$name}} {{end}}' \
+    "$container"
+done
+
+docker port nginx
+docker port app-01
+docker port app-02
+docker port postgres
+docker port redis
+
+docker exec nginx sh -c 'nc -z -w 2 postgres 5432'
+docker exec nginx sh -c 'nc -z -w 2 redis 6379'
+
+docker exec app-01 python -c \
+  'import urllib.request; r=urllib.request.urlopen("http://127.0.0.1:8080/ready", timeout=5); print(r.status, r.read().decode())'
+docker exec app-02 python -c \
+  'import urllib.request; r=urllib.request.urlopen("http://127.0.0.1:8080/ready", timeout=5); print(r.status, r.read().decode())'
+
+curl -i --max-time 5 http://127.0.0.1:8080/health
+curl -i --max-time 5 http://127.0.0.1:8080/ready
+```
+
+### Actual results
+
+- Compose validation and `git diff --check` completed without errors.
+- Network inspection showed:
+
+  ```text
+  nginx:    frontend
+  app-01:   frontend, backend
+  app-02:   frontend, backend
+  postgres: backend
+  redis:    backend
+  ```
+
+- `docker port nginx` reported `80/tcp -> 127.0.0.1:8080`; the app, PostgreSQL, and Redis port commands produced no host binding.
+- Direct connection attempts from NGINX returned `bad address` for both dependency service names. This expected failure proves those names and ports are unavailable outside their shared backend network.
+- Both app instances still returned HTTP 200 from `/ready` with PostgreSQL and Redis reported as `ready`.
+- Public `/health` and `/ready` both returned HTTP 200 through NGINX after the isolation change.
+
+### Conclusion
+
+- Root cause: excess NGINX network membership and explicit dependency host-port declarations bypassed the intended least-privilege topology.
+- Retest evidence confirms that clients can reach only NGINX, NGINX can reach the apps through `frontend`, and only the apps can reach PostgreSQL and Redis through `backend`.
+- Related commit: the commit containing this entry, `fix: enforce service network isolation`.
+
+### Remaining work
+
+- Correct and prove PostgreSQL and Redis persistence across container recreation.
+- Add restart policies, resource limits, NGINX health and bounded failover behavior.
+- Validation and failure scripts, backup/restore, CI, architecture, log analysis, final README, and evidence index remain pending.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.

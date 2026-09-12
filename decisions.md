@@ -38,6 +38,15 @@ Record at least 5 decisions. Include assumptions and limits.
 - Evidence / commit: both app startup logs are free of the control-socket error, both containers are healthy, and public liveness/readiness remain HTTP 200; `fix: disable unused gunicorn control socket`.
 - Production improvement: if runtime control is later required, configure an explicit protected socket path and ownership rather than relying on a default home-directory fallback.
 
+## Decision 5 - Separate edge and dependency traffic with two networks
+
+- Choice: attach NGINX only to `frontend`, both app instances to `frontend` and the internal `backend`, and PostgreSQL/Redis only to `backend`; publish only NGINX on host loopback port 8080.
+- Why: each service receives only the connectivity needed for its role, and all dependency traffic must pass through an application instance rather than the edge proxy or host.
+- Alternative: keep every service on one shared network or attach NGINX to both networks, which is simpler but permits unnecessary direct paths to the data services.
+- Trade-off: the application tier must bridge the two networks, and direct host database/cache access is unavailable for debugging unless a deliberate temporary method is used.
+- Evidence / commit: network inspection matches the required topology, only NGINX has a host binding, NGINX cannot resolve the dependencies, and both apps remain ready; `fix: enforce service network isolation`.
+- Production improvement: enforce equivalent network policies and ingress restrictions in the deployment platform and monitor denied connection attempts.
+
 ## Decision
 - Choice:
 - Why:
