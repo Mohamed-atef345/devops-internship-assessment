@@ -122,6 +122,15 @@ Write None if no AI was used. Otherwise record each use:
 - How you independently verified it: the candidate ran and visually reviewed multiple script outputs and identified formatting problems through screenshots. The final script was compiled with Python, executed against all three unchanged logs, checked with `git diff --check`, and its report was mapped to every template question.
 - Related commit: `docs: complete historical log analysis` (the commit containing the script, report, and related documentation).
 
+## Use 14 - Operational README documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: replace the starter README with the assessment-required, copyable operating and verification guide.
+- Files or decisions affected: `README.md` and this disclosure only.
+- What you changed or rejected: the assistant drafted the README from the existing implementation and reports. It covers setup, build/start/stop, API tests, validation, failure/recovery, persistence, backup/restore, log analysis, CI, architecture, cleanup, rationale, limitations, and the recorded live-change reminder. No application, Docker, NGINX, test, or workflow implementation was changed in this use.
+- How you independently verified it: the README was checked against `assessment/TASK.md`, `assessment/APPLICATION.md`, the Compose and NGINX configuration, and the implemented scripts. Python compilation, Bash syntax checks, and `git diff --check` passed; disruptive workflows were not rerun solely for this documentation edit.
+- Related commit: `docs: replace starter README with operations guide` (the commit containing this documentation).
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:
