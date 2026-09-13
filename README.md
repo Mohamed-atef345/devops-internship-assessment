@@ -10,7 +10,7 @@ port `8090`; the final commit and this status must then be updated to match.
 ## Architecture
 
 ```text
-Client -> NGINX -> app-01 / app-02
+Client -> NGINX -> app-01 / app-02 /app-03
                          |-> PostgreSQL
                          `-> Redis
 ```
@@ -232,9 +232,7 @@ Run `./video_challenge.sh` exactly once in this working copy and only during the
 12–18 minute video. Diagnose and repair its single runtime fault without
 `docker compose down`. Afterward, record its ignored receipt ID in the evidence index.
 
-The recording must perform the live change from two apps/port 8080 to three apps/port 8090.
-After that change, update this README's opening status, verify all three identities, rerun
-`validate.py`, commit, push, and link the matching successful CI run.
+there is now 3 app containers and they run on port 8090
 
 ## Stop and cleanup
 
