@@ -15,21 +15,21 @@
 - Hypothesis: this was a workstation setup issue rather than a defect in the Flask application.
 - Commands or tests:
 
-  ```bash
-  source .venv/bin/activate
-  python -m pip install -r requirements.txt
-  python -m pip check
-  python -m unittest discover -s tests -v
-  ```
+    ```bash
+    source .venv/bin/activate
+    python -m pip install -r requirements.txt
+    python -m pip check
+    python -m unittest discover -s tests -v
+    ```
 
 - Actual result: dependency installation completed, `pip check` reported no broken requirements, and all 8 supplied unit tests passed.
 
-  ```text
-  No broken requirements found.
+    ```text
+    No broken requirements found.
 
-  Ran 8 tests in 0.029s
-  OK
-  ```
+    Ran 8 tests in 0.029s
+    OK
+    ```
 
 - Failed attempt and what changed my thinking: running the tests before installing dependencies failed at import time. Installing the pinned requirements allowed the tests to run and separated local setup from application behavior.
 - Conclusion: the Flask contract passes with the tests' fake dependency implementation. This does not prove Docker networking, NGINX, PostgreSQL, Redis, or persistence.
@@ -42,30 +42,30 @@
 - Hypothesis: the stack contained more than one independent configuration failure, so the request path needed to be tested one boundary at a time.
 - Commands or tests:
 
-  ```bash
-  docker compose -p barq-assessment config --quiet
-  docker compose -p barq-assessment up --build -d
-  docker compose -p barq-assessment ps -a
-  docker compose -p barq-assessment logs --no-color --tail=200
-  docker inspect \
-    --format '{{.Name}} status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
-    app-01 app-02 nginx postgres redis
-  curl -i --max-time 5 http://127.0.0.1:8080/health
-  ```
+    ```bash
+    docker compose -p barq-assessment config --quiet
+    docker compose -p barq-assessment up --build -d
+    docker compose -p barq-assessment ps -a
+    docker compose -p barq-assessment logs --no-color --tail=200
+    docker inspect \
+      --format '{{.Name}} status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+      app-01 app-02 nginx postgres redis
+    curl -i --max-time 5 http://127.0.0.1:8080/health
+    ```
 
 - Actual result:
-  - `postgres` and `redis` were running and healthy.
-  - `app-01` and `app-02` were running but unhealthy.
-  - `nginx` was running without a health check.
-  - The public request to `127.0.0.1:8080` was reset instead of returning an HTTP response.
+    - `postgres` and `redis` were running and healthy.
+    - `app-01` and `app-02` were running but unhealthy.
+    - `nginx` was running without a health check.
+    - The public request to `127.0.0.1:8080` was reset instead of returning an HTTP response.
 
-  ```text
-  /app-01   status=running health=unhealthy
-  /app-02   status=running health=unhealthy
-  /nginx    status=running health=none
-  /postgres status=running health=healthy
-  /redis    status=running health=healthy
-  ```
+    ```text
+    /app-01   status=running health=unhealthy
+    /app-02   status=running health=unhealthy
+    /nginx    status=running health=none
+    /postgres status=running health=healthy
+    /redis    status=running health=healthy
+    ```
 
 - Root cause status: not assigned from container state alone; the following boundary tests isolated the causes.
 
@@ -75,25 +75,25 @@
 - Hypothesis: Docker was forwarding host traffic to a container port on which NGINX was not listening.
 - Commands or tests:
 
-  ```bash
-  docker port nginx
-  docker exec nginx nginx -T
-  docker exec nginx wget -S -O - http://127.0.0.1:80/
-  docker exec nginx wget -S -O - http://127.0.0.1:81/
-  ```
+    ```bash
+    docker port nginx
+    docker exec nginx nginx -T
+    docker exec nginx wget -S -O - http://127.0.0.1:80/
+    docker exec nginx wget -S -O - http://127.0.0.1:81/
+    ```
 
 - Actual result:
-  - Docker published `127.0.0.1:8080` to NGINX container port `81`.
-  - The effective NGINX configuration contained `listen 80;`.
-  - Port 81 refused the internal connection.
-  - Port 80 reached NGINX and returned `502 Bad Gateway`.
+    - Docker published `127.0.0.1:8080` to NGINX container port `81`.
+    - The effective NGINX configuration contained `listen 80;`.
+    - Port 81 refused the internal connection.
+    - Port 80 reached NGINX and returned `502 Bad Gateway`.
 
-  ```text
-  81/tcp -> 127.0.0.1:8080
-  listen 80;
-  http://127.0.0.1:80/ -> HTTP/1.1 502 Bad Gateway
-  http://127.0.0.1:81/ -> Connection refused
-  ```
+    ```text
+    81/tcp -> 127.0.0.1:8080
+    listen 80;
+    http://127.0.0.1:80/ -> HTTP/1.1 502 Bad Gateway
+    http://127.0.0.1:81/ -> Connection refused
+    ```
 
 - Failed attempt and what changed my thinking: requesting NGINX on port 81 failed, but retrying the actual listener on port 80 reached the proxy and revealed a second upstream problem. This showed that the public reset and upstream 502 were separate failure layers.
 - Root cause: the Compose host mapping targets container port 81 while NGINX listens on container port 80.
@@ -104,72 +104,72 @@
 
 - Symptom: NGINX returned 502 on its real listener and direct NGINX requests to both app services were refused.
 - Hypotheses:
-  - Flask was bound only to each container's loopback interface.
-  - At least one configured NGINX upstream port was incorrect.
+    - Flask was bound only to each container's loopback interface.
+    - At least one configured NGINX upstream port was incorrect.
 - Commands or tests:
 
-  ```bash
-  docker exec app-01 python -c 'import urllib.request; r=urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2); print(r.status, r.read().decode())'
-  docker exec app-02 python -c 'import urllib.request; r=urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2); print(r.status, r.read().decode())'
-  docker exec nginx wget -S -O - http://app-01:8080/health
-  docker exec nginx wget -S -O - http://app-02:8080/health
-  docker exec nginx nginx -T
-  ```
+    ```bash
+    docker exec app-01 python -c 'import urllib.request; r=urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2); print(r.status, r.read().decode())'
+    docker exec app-02 python -c 'import urllib.request; r=urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2); print(r.status, r.read().decode())'
+    docker exec nginx wget -S -O - http://app-01:8080/health
+    docker exec nginx wget -S -O - http://app-02:8080/health
+    docker exec nginx nginx -T
+    ```
 
 - Actual result:
-  - Both apps returned HTTP 200 when called through their own `127.0.0.1:8080`.
-  - NGINX resolved both Compose service names, but connections to `app-01:8080` and `app-02:8080` were refused.
-  - The apps announced `Running on http://127.0.0.1:8080` in their logs.
-  - NGINX configured `app-01:8081` and `app-02:8080` as upstreams.
+    - Both apps returned HTTP 200 when called through their own `127.0.0.1:8080`.
+    - NGINX resolved both Compose service names, but connections to `app-01:8080` and `app-02:8080` were refused.
+    - The apps announced `Running on http://127.0.0.1:8080` in their logs.
+    - NGINX configured `app-01:8081` and `app-02:8080` as upstreams.
 
-  ```text
-  app-01 localhost /health -> 200
-  app-02 localhost /health -> 200
-  nginx -> app-01:8080     -> Connection refused
-  nginx -> app-02:8080     -> Connection refused
+    ```text
+    app-01 localhost /health -> 200
+    app-02 localhost /health -> 200
+    nginx -> app-01:8080     -> Connection refused
+    nginx -> app-02:8080     -> Connection refused
 
-  upstream application_pool {
-      server app-01:8081 max_fails=0;
-      server app-02:8080 max_fails=0;
-  }
-  ```
+    upstream application_pool {
+        server app-01:8081 max_fails=0;
+        server app-02:8080 max_fails=0;
+    }
+    ```
 
 - Root causes:
-  - The apps bind to `127.0.0.1`, making them unreachable through the container network.
-  - The `app-01` NGINX upstream uses port 8081 instead of 8080.
+    - The apps bind to `127.0.0.1`, making them unreachable through the container network.
+    - The `app-01` NGINX upstream uses port 8081 instead of 8080.
 - Fix: pending.
 - Retest evidence: pending; NGINX must reach both service names on the correct internal port and public requests must return successfully.
 
 ### 5. Application health check and backend identity
 
 - Symptoms:
-  - Both app containers remained unhealthy even though `/health` returned 200 internally.
-  - Both containers returned `instance_id` value `app-01`.
+    - Both app containers remained unhealthy even though `/health` returned 200 internally.
+    - Both containers returned `instance_id` value `app-01`.
 - Hypotheses:
-  - The Compose health check used the wrong endpoint.
-  - The `app-02` instance environment value duplicated `app-01`.
+    - The Compose health check used the wrong endpoint.
+    - The `app-02` instance environment value duplicated `app-01`.
 - Commands or tests:
 
-  ```bash
-  docker compose -p barq-assessment logs --no-color --tail=40 app-01
-  docker exec app-01 python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2).read().decode())'
-  docker exec app-02 python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2).read().decode())'
-  ```
+    ```bash
+    docker compose -p barq-assessment logs --no-color --tail=40 app-01
+    docker exec app-01 python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2).read().decode())'
+    docker exec app-02 python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2).read().decode())'
+    ```
 
 - Actual result:
-  - The health check repeatedly requested `/healthz` and received 404.
-  - The application contract and successful direct test use `/health`.
-  - Both direct responses contained `instance_id: app-01`.
+    - The health check repeatedly requested `/healthz` and received 404.
+    - The application contract and successful direct test use `/health`.
+    - Both direct responses contained `instance_id: app-01`.
 
-  ```text
-  GET /healthz HTTP/1.1 -> 404
-  app-01 /health -> 200, instance_id=app-01
-  app-02 /health -> 200, instance_id=app-01
-  ```
+    ```text
+    GET /healthz HTTP/1.1 -> 404
+    app-01 /health -> 200, instance_id=app-01
+    app-02 /health -> 200, instance_id=app-01
+    ```
 
 - Root causes:
-  - The configured container health check calls nonexistent `/healthz` instead of `/health`.
-  - `app-02` is configured with the duplicate identity `app-01`.
+    - The configured container health check calls nonexistent `/healthz` instead of `/health`.
+    - `app-02` is configured with the duplicate identity `app-01`.
 - Fix: pending.
 - Retest evidence: pending; both containers must become healthy and repeated `/instance` calls must show both distinct identities.
 
@@ -179,127 +179,127 @@
 - Hypothesis: the application connection values did not match the live service ports and credentials.
 - Command or test:
 
-  ```bash
-  docker exec -i app-01 python - <<'PY'
-  import urllib.error
-  import urllib.request
+    ```bash
+    docker exec -i app-01 python - <<'PY'
+    import urllib.error
+    import urllib.request
 
-  for path in ["/", "/health", "/ready", "/instance", "/records", "/counter"]:
-      url = "http://127.0.0.1:8080" + path
-      try:
-          response = urllib.request.urlopen(url, timeout=5)
-          print(path, response.status, response.read().decode())
-      except urllib.error.HTTPError as error:
-          print(path, error.code, error.read().decode())
-      except Exception as error:
-          print(path, type(error).__name__, str(error))
-  PY
-  ```
+    for path in ["/", "/health", "/ready", "/instance", "/records", "/counter"]:
+        url = "http://127.0.0.1:8080" + path
+        try:
+            response = urllib.request.urlopen(url, timeout=5)
+            print(path, response.status, response.read().decode())
+        except urllib.error.HTTPError as error:
+            print(path, error.code, error.read().decode())
+        except Exception as error:
+            print(path, type(error).__name__, str(error))
+    PY
+    ```
 
 - Actual result:
-  - `/`, `/health`, and `/instance` returned 200.
-  - `/ready` returned 503 with both PostgreSQL and Redis unavailable.
-  - `/records` returned 503 `postgres_unavailable`.
-  - `/counter` returned 503 `redis_unavailable`.
-  - PostgreSQL listened on its standard container port 5432 while the app targeted 5433.
-  - Redis listened on its standard container port 6379 while the app targeted 6380.
-  - The configured PostgreSQL password value also differed between the app URL and database service. The values are intentionally omitted here.
+    - `/`, `/health`, and `/instance` returned 200.
+    - `/ready` returned 503 with both PostgreSQL and Redis unavailable.
+    - `/records` returned 503 `postgres_unavailable`.
+    - `/counter` returned 503 `redis_unavailable`.
+    - PostgreSQL listened on its standard container port 5432 while the app targeted 5433.
+    - Redis listened on its standard container port 6379 while the app targeted 6380.
+    - The configured PostgreSQL password value also differed between the app URL and database service. The values are intentionally omitted here.
 
-  ```text
-  /         -> 200
-  /health   -> 200 status=alive
-  /ready    -> 503 postgres=unavailable redis=unavailable
-  /instance -> 200
-  /records  -> 503 postgres_unavailable
-  /counter  -> 503 redis_unavailable
-  ```
+    ```text
+    /         -> 200
+    /health   -> 200 status=alive
+    /ready    -> 503 postgres=unavailable redis=unavailable
+    /instance -> 200
+    /records  -> 503 postgres_unavailable
+    /counter  -> 503 redis_unavailable
+    ```
 
 - Root causes:
-  - PostgreSQL host/port/password settings are inconsistent with the Compose service.
-  - Redis is addressed on the wrong internal port.
+    - PostgreSQL host/port/password settings are inconsistent with the Compose service.
+    - Redis is addressed on the wrong internal port.
 - Fix: pending.
 - Retest evidence: pending; `/ready`, `/records`, and `/counter` must perform successful real dependency operations.
 
 ### 7. Network isolation and prohibited host exposure
 
 - Symptoms:
-  - NGINX had direct membership in the backend network.
-  - Compose requested PostgreSQL and Redis host port mappings even though only NGINX may be published.
+    - NGINX had direct membership in the backend network.
+    - Compose requested PostgreSQL and Redis host port mappings even though only NGINX may be published.
 - Commands or tests:
 
-  ```bash
-  for container in app-01 app-02 nginx postgres redis; do
-    docker inspect \
-      --format '{{.Name}}: {{range $name, $_ := .NetworkSettings.Networks}}{{$name}} {{end}}' \
-      "$container"
-  done
+    ```bash
+    for container in app-01 app-02 nginx postgres redis; do
+      docker inspect \
+        --format '{{.Name}}: {{range $name, $_ := .NetworkSettings.Networks}}{{$name}} {{end}}' \
+        "$container"
+    done
 
-  docker inspect --format '{{json .HostConfig.PortBindings}}' nginx postgres redis
-  ```
+    docker inspect --format '{{json .HostConfig.PortBindings}}' nginx postgres redis
+    ```
 
 - Actual result:
-  - `app-01` and `app-02` belonged to frontend and backend.
-  - `nginx` also belonged to frontend and backend.
-  - PostgreSQL and Redis belonged to backend only.
-  - Container `HostConfig.PortBindings` requested PostgreSQL on loopback port 15432 and Redis on loopback port 16379.
-  - In this run, `docker port` printed no active PostgreSQL/Redis mapping and `NetworkSettings.Ports` reported null for both. Therefore, this entry does not claim that those two ports were reachable from the host.
+    - `app-01` and `app-02` belonged to frontend and backend.
+    - `nginx` also belonged to frontend and backend.
+    - PostgreSQL and Redis belonged to backend only.
+    - Container `HostConfig.PortBindings` requested PostgreSQL on loopback port 15432 and Redis on loopback port 16379.
+    - In this run, `docker port` printed no active PostgreSQL/Redis mapping and `NetworkSettings.Ports` reported null for both. Therefore, this entry does not claim that those two ports were reachable from the host.
 
-  ```text
-  app-01:  barq-assessment_backend barq-assessment_frontend
-  app-02:  barq-assessment_backend barq-assessment_frontend
-  nginx:   barq-assessment_backend barq-assessment_frontend
-  postgres: barq-assessment_backend
-  redis:    barq-assessment_backend
+    ```text
+    app-01:  barq-assessment_backend barq-assessment_frontend
+    app-02:  barq-assessment_backend barq-assessment_frontend
+    nginx:   barq-assessment_backend barq-assessment_frontend
+    postgres: barq-assessment_backend
+    redis:    barq-assessment_backend
 
-  postgres HostConfig: 5432/tcp -> 127.0.0.1:15432
-  redis HostConfig:    6379/tcp -> 127.0.0.1:16379
-  postgres/redis active NetworkSettings port bindings: null
-  ```
+    postgres HostConfig: 5432/tcp -> 127.0.0.1:15432
+    redis HostConfig:    6379/tcp -> 127.0.0.1:16379
+    postgres/redis active NetworkSettings port bindings: null
+    ```
 
 - Root causes:
-  - NGINX is incorrectly attached to backend.
-  - PostgreSQL and Redis declare prohibited Compose host port mappings; they must be removed even though Docker did not activate them in this run.
+    - NGINX is incorrectly attached to backend.
+    - PostgreSQL and Redis declare prohibited Compose host port mappings; they must be removed even though Docker did not activate them in this run.
 - Fix: pending.
 - Retest evidence: pending; NGINX must be frontend-only and Docker inspection must show no host bindings for the apps, PostgreSQL, or Redis.
 
 ### 8. Persistence, secrets, and runtime policy
 
 - Symptoms and observations:
-  - The named PostgreSQL volume did not contain the active database data directory.
-  - Redis persistence was disabled.
-  - A database credential crossed tracked configuration, image, runtime environment, and log boundaries.
-  - The app ran as root with Flask's development server.
-  - Restart policies, resource limits, and an NGINX health check were absent.
+    - The named PostgreSQL volume did not contain the active database data directory.
+    - Redis persistence was disabled.
+    - A database credential crossed tracked configuration, image, runtime environment, and log boundaries.
+    - The app ran as root with Flask's development server.
+    - Restart policies, resource limits, and an NGINX health check were absent.
 - Commands or tests:
 
-  ```bash
-  docker inspect \
-    --format '{{.Name}}: {{range .Mounts}}{{.Type}} {{.Name}} -> {{.Destination}}; {{end}}' \
-    postgres redis
-  docker inspect --format '{{json .HostConfig.Tmpfs}}' postgres
-  docker inspect --format '{{json .Config.Cmd}}' redis
-  docker inspect --format '{{.Config.User}}' app-01
-  docker inspect --format '{{.HostConfig.RestartPolicy.Name}} memory={{.HostConfig.Memory}} nano_cpus={{.HostConfig.NanoCpus}}' app-01 app-02 nginx postgres redis
-  docker compose -p barq-assessment logs --no-color app-01
-  ```
+    ```bash
+    docker inspect \
+      --format '{{.Name}}: {{range .Mounts}}{{.Type}} {{.Name}} -> {{.Destination}}; {{end}}' \
+      postgres redis
+    docker inspect --format '{{json .HostConfig.Tmpfs}}' postgres
+    docker inspect --format '{{json .Config.Cmd}}' redis
+    docker inspect --format '{{.Config.User}}' app-01
+    docker inspect --format '{{.HostConfig.RestartPolicy.Name}} memory={{.HostConfig.Memory}} nano_cpus={{.HostConfig.NanoCpus}}' app-01 app-02 nginx postgres redis
+    docker compose -p barq-assessment logs --no-color app-01
+    ```
 
 - Actual result:
-  - `postgres-data` was mounted at `/var/lib/postgresql/backup`, while `/var/lib/postgresql/data` used tmpfs.
-  - Redis started with snapshotting disabled and append-only persistence disabled.
-  - The Dockerfile copied the tracked connection configuration into the image, and the app printed the complete connection URLs at startup.
-  - The app container user was `root`; logs showed Flask's development-server warning even though Gunicorn is an installed dependency.
-  - Inspected restart policy was `no`, and configured memory/CPU limits were zero.
-  - NGINX had no container health check.
+    - `postgres-data` was mounted at `/var/lib/postgresql/backup`, while `/var/lib/postgresql/data` used tmpfs.
+    - Redis started with snapshotting disabled and append-only persistence disabled.
+    - The Dockerfile copied the tracked connection configuration into the image, and the app printed the complete connection URLs at startup.
+    - The app container user was `root`; logs showed Flask's development-server warning even though Gunicorn is an installed dependency.
+    - Inspected restart policy was `no`, and configured memory/CPU limits were zero.
+    - NGINX had no container health check.
 
-  ```text
-  postgres-data -> /var/lib/postgresql/backup
-  tmpfs         -> /var/lib/postgresql/data
-  Redis command -> --save "" --appendonly no
-  app user      -> root
-  restart       -> no
-  memory        -> 0
-  nano_cpus     -> 0
-  ```
+    ```text
+    postgres-data -> /var/lib/postgresql/backup
+    tmpfs         -> /var/lib/postgresql/data
+    Redis command -> --save "" --appendonly no
+    app user      -> root
+    restart       -> no
+    memory        -> 0
+    nano_cpus     -> 0
+    ```
 
 - Root causes: incorrect storage targets and runtime/security defaults in the supplied Dockerfile and Compose configuration.
 - Fix: pending. Secret values must not be repeated in documentation or commits beyond the immutable supplied baseline.
@@ -313,10 +313,10 @@
 - Implemented fixes: none in this entry; the broken baseline was intentionally preserved.
 - Related commit: the commit introducing this entry, `docs: record initial environment investigation`.
 - Remaining uncertainty:
-  - The exact behavior after each repair must be measured rather than assumed.
-  - Real record creation, counter increment, load balancing, failover, recovery, and persistence remain unproved.
-  - Historical log analysis is a separate incident and has not started.
-  - Required validation, failure, backup/restore, CI, architecture, security, decision, AI, and evidence deliverables remain incomplete.
+    - The exact behavior after each repair must be measured rather than assumed.
+    - Real record creation, counter increment, load balancing, failover, recovery, and persistence remain unproved.
+    - Historical log analysis is a separate incident and has not started.
+    - Required validation, failure, backup/restore, CI, architecture, security, decision, AI, and evidence deliverables remain incomplete.
 
 ---
 
@@ -375,25 +375,25 @@ done | sort | uniq -c
 - Public `/`, `/health`, and `/instance` requests returned HTTP 200 through NGINX.
 - Twenty public `/instance` requests reached both backends:
 
-  ```text
-  15 app-01
-   5 app-02
-  ```
+    ```text
+    15 app-01
+     5 app-02
+    ```
 
 - `/srv/app.env` was absent from the application image.
 - The application logs contained no PostgreSQL or Redis connection URLs.
 
 ### Diagnosis-to-evidence mapping
 
-| Baseline fault | Applied correction | Retest evidence |
-| --- | --- | --- |
-| App bound only to container loopback | Bind Gunicorn to `0.0.0.0:8080` | NGINX reached both apps and received HTTP 200 |
-| NGINX published to unused port 81 | Publish host 8080 to NGINX port 80 | Public endpoints returned HTTP 200 |
-| `app-01` upstream used port 8081 | Use port 8080 for both upstreams | Both direct upstream health requests succeeded |
-| Health check requested `/healthz` | Check `/health` | Both app containers became healthy |
-| Both services identified as `app-01` | Set the second ID to `app-02` | Load-balancing sample contained both identities |
-| Development server ran as root | Use Gunicorn as user `app` | Container process inspection showed UID 10001 and Gunicorn workers |
-| Configuration file was copied into the image and URLs were logged | Remove the copy and log only configured/not-configured booleans | `/srv/app.env` was absent and the connection-URL log scan passed |
+| Baseline fault                                                    | Applied correction                                              | Retest evidence                                                    |
+| ----------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------ |
+| App bound only to container loopback                              | Bind Gunicorn to `0.0.0.0:8080`                                 | NGINX reached both apps and received HTTP 200                      |
+| NGINX published to unused port 81                                 | Publish host 8080 to NGINX port 80                              | Public endpoints returned HTTP 200                                 |
+| `app-01` upstream used port 8081                                  | Use port 8080 for both upstreams                                | Both direct upstream health requests succeeded                     |
+| Health check requested `/healthz`                                 | Check `/health`                                                 | Both app containers became healthy                                 |
+| Both services identified as `app-01`                              | Set the second ID to `app-02`                                   | Load-balancing sample contained both identities                    |
+| Development server ran as root                                    | Use Gunicorn as user `app`                                      | Container process inspection showed UID 10001 and Gunicorn workers |
+| Configuration file was copied into the image and URLs were logged | Remove the copy and log only configured/not-configured booleans | `/srv/app.env` was absent and the connection-URL log scan passed   |
 
 ### Failed or limited verification attempt
 
@@ -603,13 +603,13 @@ curl -i --max-time 5 http://127.0.0.1:8080/ready
 - Compose validation and `git diff --check` completed without errors.
 - Network inspection showed:
 
-  ```text
-  nginx:    frontend
-  app-01:   frontend, backend
-  app-02:   frontend, backend
-  postgres: backend
-  redis:    backend
-  ```
+    ```text
+    nginx:    frontend
+    app-01:   frontend, backend
+    app-02:   frontend, backend
+    postgres: backend
+    redis:    backend
+    ```
 
 - `docker port nginx` reported `80/tcp -> 127.0.0.1:8080`; the app, PostgreSQL, and Redis port commands produced no host binding.
 - Direct connection attempts from NGINX returned `bad address` for both dependency service names. This expected failure proves those names and ports are unavailable outside their shared backend network.
@@ -787,12 +787,12 @@ The `/instance` request was repeated while the backend was stopped and again aft
 - The first immediate Compose status showed normal `health: starting` states. Subsequent status output showed every service healthy.
 - Runtime inspection reported `unless-stopped` and the expected byte/NanoCPU limits for all five services:
 
-  ```text
-  app-01/app-02: memory=268435456 nano_cpus=500000000
-  nginx:         memory=134217728 nano_cpus=250000000
-  postgres:      memory=536870912 nano_cpus=750000000
-  redis:         memory=268435456 nano_cpus=250000000
-  ```
+    ```text
+    app-01/app-02: memory=268435456 nano_cpus=500000000
+    nginx:         memory=134217728 nano_cpus=250000000
+    postgres:      memory=536870912 nano_cpus=750000000
+    redis:         memory=268435456 nano_cpus=250000000
+    ```
 
 - Before failure injection, public `/health` and `/ready` returned HTTP 200.
 - A deliberate `docker stop app-01` left that container exited, as expected for a manual stop under `unless-stopped`.
@@ -854,7 +854,6 @@ python3 validate.py
 - The healthy run exited 0.
 - The harmless unused-port test stopped after the two-second deadline, printed `FAIL: dependencies were not ready within 2 seconds`, and exited 1.
 - Python compilation and `git diff --check` both succeeded.
-
 
 ### Conclusion
 
@@ -966,14 +965,15 @@ ALL FAILURE TESTS PASSED
 - `python3 validate.py` passed every full-stack check, observed `app-01` and `app-02`, and incremented Redis from 17 to 18.
 - A final read-only record check returned:
 
-  ```json
-  {
-    "keep_present": true,
-    "after_present": false
-  }
-  ```
+    ```json
+    {
+        "keep_present": true,
+        "after_present": false
+    }
+    ```
 
-  This proves the backed-up record survived and the record created after the snapshot was removed by restoration.
+    This proves the backed-up record survived and the record created after the snapshot was removed by restoration.
+
 - `bash -n backup.sh restore.sh` and `git diff --check` passed.
 
 ### Conclusion
@@ -1113,11 +1113,47 @@ git status --short
 
 ---
 
+## Entry 15 - Recorded finalization and CI retest
+
+### Recorded work
+
+- Video: [Google Drive recording](https://drive.google.com/file/d/1ZL6gZt2dGmtx_k22hOOTwhABO-RUpAr2/view?usp=sharing).
+- The recording is approximately 19 minutes.
+- It shows endpoint/dependency operations at `01:43-04:15`, both initial backends at
+  `03:45-04:15`, the failure/recovery test at `04:15-05:32`, validation and topology checks at
+  `06:52-08:05`, and a historical-log finding at `08:00-09:00`.
+- The one-time challenge ran at video timestamp `09:14` and produced receipt
+  `f061e5604de9443a9f19148f2ce60bb6`; the ignored local receipt reports status `applied` and UTC
+  start `2026-09-13T19:35:50.655266+00:00`.
+
+### Final live change and delayed build
+
+- Commit `de9444d` changed the public port to 8090 and configured `app-03` in Compose.
+- An initial Compose edit produced a YAML cycle error. After that edit was corrected,
+  `docker compose -p barq-assessment up -d --force-recreate` unnecessarily rebuilt/recreated the
+  full stack and took approximately 604.5 seconds.
+- The recording ended before that build completed. The retained screenshot shows both the earlier
+  error and subsequent successful build; it is supplemental evidence, not continuous-video proof.
+
+### CI failure and remediation
+
+- [CI run 34778683967](https://github.com/Mohamed-atef345/devops-internship-assessment/actions/runs/34778683967)
+  for `de9444d` passed syntax, build, and startup but failed full-stack validation. The commit
+  configured `app-03`, but the NGINX upstream pool still contained only `app-01` and `app-02`.
+- Commit `6dcc0f9` added `app-03:8080` to the NGINX pool and recorded the supplemental evidence.
+- [CI run 34779348679](https://github.com/Mohamed-atef345/devops-internship-assessment/actions/runs/34779348679)
+  completed successfully for `6dcc0f9`, including full-stack validation and the Trivy scan.
+- The final validation screenshot independently shows port 8090, all three configured and observed
+  backends, dependency readiness, network isolation, and `ALL VALIDATION CHECKS PASSED`.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.
 
 ## Entry / date / time
+
 - Symptom:
 - Hypothesis:
 - Command or test:

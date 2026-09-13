@@ -227,14 +227,16 @@ Detailed evidence and trade-offs are recorded in:
 
 ## Recorded challenge
 
-The one-time challenge ran in the recorded working copy and produced receipt
+The [continuous recording](https://drive.google.com/file/d/1ZL6gZt2dGmtx_k22hOOTwhABO-RUpAr2/view?usp=sharing)
+shows the one-time challenge at `09:14` and produced receipt
 `f061e5604de9443a9f19148f2ce60bb6`. Its runtime fault was diagnosed and repaired without
 using `docker compose down`. The ignored `.assessment/` state remains local and must not be
 deleted or used to rerun the challenge.
 
 The live change moved the public port to `8090` and added `app-03`. Because the continuous
 recording ended before the slow image build completed, the screenshots below are explicitly
-supplemental evidence just to prove that the build was successful and that the new app-03 container served traffic fine.
+supplemental evidence that the build subsequently succeeded and `app-03` served traffic. The
+recording is approximately 19 minutes, which exceeds the requested 12-18 minute range.
 
 ### Supplemental final-state screenshots
 
