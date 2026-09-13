@@ -3,16 +3,15 @@
 # BARQ DevOps Assessment
 
 Docker Compose deployment of a Flask API behind NGINX with PostgreSQL and Redis.
-The checked-in pre-video state runs two application instances on public loopback port
-`8080`. During the required recording, it will be changed live to three instances and
-port `8090`; the final commit and this status must then be updated to match.
+The final state runs three application instances behind NGINX on public loopback port
+`8090`.
 
 ## Architecture
 
 ```text
-Client -> NGINX -> app-01 / app-02 /app-03
-                         |-> PostgreSQL
-                         `-> Redis
+Client -> NGINX -> app-01 / app-02 / app-03
+                                  |-> PostgreSQL
+                                  `-> Redis
 ```
 
 - Only NGINX publishes a host port, bound to `127.0.0.1`.
@@ -228,11 +227,33 @@ Detailed evidence and trade-offs are recorded in:
 
 ## Recorded challenge
 
-Run `./video_challenge.sh` exactly once in this working copy and only during the continuous
-12–18 minute video. Diagnose and repair its single runtime fault without
-`docker compose down`. Afterward, record its ignored receipt ID in the evidence index.
+The one-time challenge ran in the recorded working copy and produced receipt
+`f061e5604de9443a9f19148f2ce60bb6`. Its runtime fault was diagnosed and repaired without
+using `docker compose down`. The ignored `.assessment/` state remains local and must not be
+deleted or used to rerun the challenge.
 
-there is now 3 app containers and they run on port 8090
+The live change moved the public port to `8090` and added `app-03`. Because the continuous
+recording ended before the slow image build completed, the screenshots below are explicitly
+supplemental evidence just to prove that the build was successful and that the new app-03 container served traffic fine.
+
+### Supplemental final-state screenshots
+
+Challenge receipt:
+
+<img src="docs/evidence/challenge-receipt.png" alt="One-time video challenge receipt" width="900">
+
+Completed `app-03` image build and full-stack recreation. The same screenshot also preserves the
+earlier YAML cycle error before it was corrected and the subsequent build succeeded:
+
+<img src="docs/evidence/app03-build-completion.png" alt="Completed app-03 build after correcting an earlier YAML error" width="900">
+
+Final port-8090 validation, including discovery and observation of all three backends:
+
+<img src="docs/evidence/final-three-app-validation.png" alt="Final three-app validation passed on port 8090" width="900">
+
+Final NGINX upstream configuration containing `app-03:8080`:
+
+<img src="docs/evidence/nginx-app03-upstream.png" alt="NGINX upstream configuration with app-03" width="900">
 
 ## Stop and cleanup
 

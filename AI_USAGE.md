@@ -131,6 +131,15 @@ Write None if no AI was used. Otherwise record each use:
 - How you independently verified it: the README was checked against `assessment/TASK.md`, `assessment/APPLICATION.md`, the Compose and NGINX configuration, and the implemented scripts. Python compilation, Bash syntax checks, and `git diff --check` passed; disruptive workflows were not rerun solely for this documentation edit.
 - Related commit: `docs: replace starter README with operations guide` (the commit containing this documentation).
 
+## Use 15 - Supplemental screenshot organization and documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: review candidate-supplied screenshots, place the relevant images in the repository, and link them as supplemental final-state evidence.
+- Files or decisions affected: `docs/evidence/challenge-receipt.png`, `docs/evidence/app03-build-completion.png`, `docs/evidence/final-three-app-validation.png`, `docs/evidence/nginx-app03-upstream.png`, `README.md`, `docs/EVIDENCE_INDEX.md`, and `AI_USAGE.md`.
+- What you changed or rejected: the assistant copied four candidate-created screenshots without editing their pixels and documented them as supplemental rather than continuous-video evidence. At the candidate's request, the long-build screenshot was retained and labeled to acknowledge both its earlier YAML error and subsequent successful build.
+- How you independently verified it: visually inspected each retained screenshot for relevance and visible secrets, confirmed the receipt against `.assessment/challenge.json`, and checked that the final validation screenshot shows port 8090, all three configured/observed backends, network isolation, and `ALL VALIDATION CHECKS PASSED`.
+- Related commit: the commit containing the final NGINX update and supplemental evidence.
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:
