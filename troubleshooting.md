@@ -1055,6 +1055,23 @@ git status --short
 
 ---
 
+## Entry 13 - 2026-09-13 18:25-18:52 EEST (15:25-15:52 UTC)
+
+- Purpose: create and document the required final architecture diagram.
+- Work began at `2026-09-13 18:25:41 EEST (+0300)` / `15:25:41 UTC` and ended at
+  `18:52:04 EEST (+0300)` / `15:52:04 UTC`.
+- The diagram records the final client-to-NGINX-to-three-Flask-instance request flow, frontend
+  and backend networks, PostgreSQL and Redis ports, named storage, and health/readiness checks.
+- `docs/ARCHITECTURE.md` explains that NGINX cannot directly reach the data services and records
+  the remaining NGINX, PostgreSQL, Redis, local-volume, and single-host failure points.
+- The candidate-created image was placed at the required repository-root path
+  `architecture.png`; the assistant did not edit its pixels.
+- Related commit: `docs: add final architecture diagram`.
+- Remaining evidence: verify the diagram against the live three-app, port-8090 configuration
+  during the video and add the real video timestamp to `docs/EVIDENCE_INDEX.md`.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.

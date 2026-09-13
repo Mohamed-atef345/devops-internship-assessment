@@ -103,6 +103,15 @@ Write None if no AI was used. Otherwise record each use:
 - How you independently verified it: confirmed commits `e751d08` and `527f486` locally, inspected the Dockerfile change, reviewed the two Trivy findings, and verified through GitHub Actions metadata that every step in run #2 completed successfully.
 - Related commits: `e751d08` (`ci: add full-stack workflow and image scan`) and `527f486` (`fix: upgrade vulnerable pcre2 package`).
 
+## Use 12 - Architecture documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: document the candidate-created architecture diagram and its remaining single points of failure.
+- Files or decisions affected: `docs/ARCHITECTURE.md`, `docs/EVIDENCE_INDEX.md`, `README.md`, `troubleshooting.md`, and `AI_USAGE.md`; the supplied diagram was moved to the required root filename `architecture.png`.
+- What you changed or rejected: the assistant wrote documentation and corrected the file placement only. It did not create or edit the diagram pixels.
+- How you independently verified it: visually inspected the final PNG and confirmed that it shows the client, NGINX, three app identities, ports, frontend/backend networks, PostgreSQL, Redis, named storage, request flow, and health/readiness relationships. The final live topology remains video evidence.
+- Related commit: `docs: add final architecture diagram`.
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:

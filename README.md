@@ -74,6 +74,12 @@ The first image scan found two fixable HIGH vulnerabilities in Debian's `libpcre
 Commit `527f486` applies the targeted package upgrade; the subsequent full pipeline and blocking
 Trivy scan [completed successfully](https://github.com/Mohamed-atef345/devops-internship-assessment/actions/runs/34765059184).
 
+## Architecture
+
+The [final architecture diagram](architecture.png) and its [explanation](docs/ARCHITECTURE.md)
+show the required three-app, port-8090 topology, network boundaries, persistent storage,
+health/readiness relationships, and remaining single points of failure.
+
 ## Your work
 
 - Complete [assessment/TASK.md](assessment/TASK.md).
