@@ -92,6 +92,15 @@ Record at least 5 decisions. Include assumptions and limits.
 - Evidence / commit: the final run measured 20 successes, zero failures, `app-02` during the outage, and `app-01` after recovery; `test: add backend failure and recovery proof`.
 - Production improvement: run equivalent controlled failure experiments in a safe staging environment with service-level metrics, alert assertions, and broader failure modes.
 
+## Decision 11 - Pair an atomic SQL backup with transactional restore
+
+- Choice: create a plain SQL dump through `pg_dump --clean --if-exists` into a temporary file, publish it only when non-empty, and restore it through `psql` with stop-on-error inside one transaction.
+- Why: the two short scripts use tools already present in the PostgreSQL image and make both incomplete backup creation and partial SQL restoration fail clearly.
+- Alternative: use a custom-format dump with `pg_restore`, which offers selective and parallel restore features but adds options not needed for this small single-schema assessment.
+- Trade-off: the ignored plain SQL file is readable and unencrypted, and restoring intentionally replaces current database objects and data with the snapshot.
+- Evidence / commit: a 2.1 KiB ignored dump restored nine records; the pre-backup record remained, the post-backup record disappeared, readiness stayed healthy, and full validation passed; `feat: add postgres backup and restore workflow`.
+- Production improvement: encrypt backups, restrict permissions, store them off-host, define retention, schedule backups, monitor jobs, and regularly test recovery objectives against isolated restore targets.
+
 ## Decision
 - Choice:
 - Why:

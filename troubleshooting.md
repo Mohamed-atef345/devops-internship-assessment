@@ -935,6 +935,59 @@ ALL FAILURE TESTS PASSED
 
 ---
 
+## Entry 10 - 2026-09-13 16:06-16:28 EEST (13:06-13:28 UTC)
+
+### Scope and timing
+
+- Purpose: implement and prove a real PostgreSQL logical backup and transactional restore.
+- Files changed: `backup.sh` and `restore.sh`.
+- The candidate captured the start at `2026-09-13 16:06:42 EEST (+0300)` / `13:06:42 UTC` and the end at `16:28:18 EEST` / `13:28:18 UTC`.
+
+### Implementation
+
+- `backup.sh` runs `pg_dump` inside the Compose-owned PostgreSQL container with clean, ownership-neutral SQL output.
+- It writes to a temporary file, rejects an empty dump, then atomically moves the completed dump to the requested path.
+- The default output directory is ignored `backups/`, preventing database contents from being committed accidentally.
+- `restore.sh` requires one non-empty backup-file argument and passes it to `psql` inside the PostgreSQL container.
+- Restore uses `ON_ERROR_STOP=1` and one transaction so a SQL error fails the script instead of reporting partial success.
+- Both scripts use the existing container environment for the database name and user and do not print the password.
+
+### Verification commands and evidence
+
+- The candidate used commands supplied by OpenAI Codex to create a uniquely named record, back it up, create a second record after the snapshot, restore the snapshot, and revalidate the stack.
+- `/ready` initially returned HTTP 200 with PostgreSQL and Redis both `ready`.
+- The record retained in the backup was ID 9 with title `Backup proof 20260913T131147Z`.
+- `./backup.sh` created `backups/restore-proof-20260913T131147Z.sql`.
+- `ls -lh` reported a 2.1 KiB non-empty file, and `git check-ignore` printed its path, proving it is ignored.
+- After the backup, the candidate created record ID 10 with title `Created after backup 20260913T131147Z`.
+- A pre-restore query returned `true`, proving both unique records existed before restoration.
+- `./restore.sh` completed the clean schema restore, copied nine records, reset the identity sequence to 9, and printed `PASS: backup restored`.
+- Public readiness remained healthy after restoration.
+- `python3 validate.py` passed every full-stack check, observed `app-01` and `app-02`, and incremented Redis from 17 to 18.
+- A final read-only record check returned:
+
+  ```json
+  {
+    "keep_present": true,
+    "after_present": false
+  }
+  ```
+
+  This proves the backed-up record survived and the record created after the snapshot was removed by restoration.
+- `bash -n backup.sh restore.sh` and `git diff --check` passed.
+
+### Conclusion
+
+- Logical backup and restore are independently proven: the snapshot retained the pre-backup record and removed the post-backup record while the application returned to full readiness.
+- This test did not remove Compose volumes and is separate from the earlier container-recreation persistence proof.
+- Related commit: `feat: add postgres backup and restore workflow` (the commit containing both scripts and this evidence).
+
+### Remaining work
+
+- Add CI, analyze the historical logs, replace the starter README, create the final architecture diagram, and complete final submission evidence.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.

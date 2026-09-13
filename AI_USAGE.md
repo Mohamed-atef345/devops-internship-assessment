@@ -76,6 +76,15 @@ Write None if no AI was used. Otherwise record each use:
 - Documentation assistance: the assistant drafted troubleshooting Entry 9, Decision 10, this disclosure, and the failure-test evidence-index rows from the supplied terminal evidence and final verification.
 - Related commit: `test: add backend failure and recovery proof`.
 
+## Use 9 - PostgreSQL backup/restore assistance
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: provide commands to test their outputs, and help document the results.
+- Files or decisions affected: `troubleshooting.md`, `decisions.md`, `docs/EVIDENCE_INDEX.md`, and `AI_USAGE.md`.
+- Candidate verification: the candidate ran the backup and restore workflow and supplied timestamped output showing a non-empty ignored backup, successful restoration, healthy services, and passing validation.
+- Documentation assistance: the assistant helped document the supplied results.
+- Related commit: `feat: add postgres backup and restore workflow`.
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:

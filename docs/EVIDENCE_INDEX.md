@@ -21,5 +21,7 @@ Match the final README, diagram, GitHub code and video (three instances, public 
 | Verify prohibited host ports and network isolation | `validate.py` Docker port/network inspection | `test: add bounded full-stack validation` | Pending | Passed for the required pre-video topology |
 | Measure availability while one backend is stopped | [`failure_test.sh`](../failure_test.sh) and troubleshooting Entry 9 | `test: add backend failure and recovery proof` | Pending | Passed with 20 successes, zero failures, and `app-02` observed |
 | Restore the stopped backend and prove reintegration | `failure_test.sh` bounded recovery loop and troubleshooting Entry 9 | `test: add backend failure and recovery proof` | Pending | Passed; recovered `app-01` served public traffic |
+| Create a real PostgreSQL logical backup | [`backup.sh`](../backup.sh) and troubleshooting Entry 10 | `feat: add postgres backup and restore workflow` | Pending | Passed; non-empty 2.1 KiB ignored SQL dump created |
+| Restore the PostgreSQL backup and prove recovery | [`restore.sh`](../restore.sh) and troubleshooting Entry 10 | `feat: add postgres backup and restore workflow` | Pending | Passed; pre-backup record present and post-backup record absent |
 
 Replace each pending field only with the real commit, CI link, or video timestamp after it exists. The final video must repeat validation after the live three-app/port-8090 change.
