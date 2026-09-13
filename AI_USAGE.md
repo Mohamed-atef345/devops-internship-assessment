@@ -66,6 +66,16 @@ Write None if no AI was used. Otherwise record each use:
 - Documentation assistance: the assistant drafted the validation entry in `troubleshooting.md`, the validation decision in `decisions.md`, this disclosure, and the pending validation row in `docs/EVIDENCE_INDEX.md`; the candidate reviewed and retained responsibility for the submitted content.
 - Related commit: `test: add bounded full-stack validation` (the commit containing `validate.py` and these documentation updates).
 
+## Use 8 - Backend failure-test review, safety fix and documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: review the candidate's timestamped terminal evidence, verify the final behavior, and document the milestone.
+- Files or decisions affected: `troubleshooting.md`, `decisions.md`, `docs/EVIDENCE_INDEX.md`, and `AI_USAGE.md`.
+- What you changed or rejected: the candidate selected Bash, implemented and repeatedly tested the outage/recovery flow.Broader endpoint, port-isolation, and dependency tests were kept in `validate.py` rather than duplicated here.
+- How you independently verified it: reviewed the complete terminal history, including genuine failed attempts and final successful candidate runs; ran `bash -n` and `git diff --check`; and ran the finalized test from 15:57:26 to 15:57:36 EEST. The final run measured 20 successes, zero failures, only `app-02` during the outage, and public traffic from the recovered `app-01`, with exit 0.
+- Documentation assistance: the assistant drafted troubleshooting Entry 9, Decision 10, this disclosure, and the failure-test evidence-index rows from the supplied terminal evidence and final verification.
+- Related commit: `test: add backend failure and recovery proof`.
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:

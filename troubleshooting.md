@@ -870,6 +870,71 @@ python3 validate.py
 
 ---
 
+## Entry 9 - 2026-09-13 14:32-15:57 EEST (11:32-12:57 UTC)
+
+### Scope and timing
+
+- Purpose: replace the Python failure-test placeholder with a minimal Bash test that measures availability during one backend outage and proves recovery.
+- Files changed: removed `failure_test.py` and added executable `failure_test.sh`.
+- Candidate-captured work began at `2026-09-13 14:32:12 EEST (+0300)` / `11:32:12 UTC` and ended at `15:52:36 EEST` / `12:52:36 UTC`.
+- A final post-review run was captured from `15:57:26` to `15:57:36 EEST` / `12:57:26` to `12:57:36 UTC`.
+
+### Failed attempts and lessons
+
+- Unquoted `grep app-*` was expanded by Zsh and failed with `no matches found`; quoting the expression allowed the two app container names to be counted.
+- Because those early versions lacked guaranteed cleanup, inspection at 15:16 showed `app-01` still exited while the remaining four services were running. This directly demonstrated why cleanup cannot depend only on reaching the normal restart lines.
+- Later candidate runs at 15:23, 15:25, and 15:49 completed successfully. The 15:49 run reported `observed_app: app-02`, 20 successes, zero failures, and `app-01` serving again.
+
+### Final implementation
+
+- Discovers the published NGINX port from Compose so the test follows the later change from 8080 to 8090.
+- Requires `app-01`, at least two running app containers, and public readiness before injecting failure.
+- Stops only `app-01`, sends 20 bounded `/instance` requests, and counts successes and failures.
+- Requires successful responses to contain a non-empty identity other than the stopped `app-01`.
+- Registers an EXIT cleanup trap before stopping the backend, so an intermediate failure attempts to restore `app-01`.
+- Restarts `app-01` and polls `/instance` until that identity is observed or the bounded attempts expire.
+- Does not use `docker compose down`, change configuration, or touch volumes.
+
+### Final verification
+
+```bash
+bash -n failure_test.sh
+git diff --check
+./failure_test.sh
+```
+
+The final run produced:
+
+```text
+PASS: app-01 is running
+PASS: 2 app containers are running
+PASS: /ready responded with 200
+PASS: stopped app-01
+Successes: 20
+Failures: 0
+observed_app: app-02
+PASS: service remained available
+PASS: restarted app-01
+PASS: app-01 served traffic again
+ALL FAILURE TESTS PASSED
+```
+
+- The final script exited 0.
+- Shell syntax and `git diff --check` passed.
+- The post-review run took ten seconds from 15:57:26 to 15:57:36 EEST.
+
+### Conclusion
+
+- The automated test proves that all 20 measured public requests remained available through `app-02` while `app-01` was stopped, and that the restored `app-01` subsequently served public traffic.
+- Related commit: `test: add backend failure and recovery proof` (the commit containing `failure_test.sh` and this entry).
+
+### Remaining work
+
+- Implement and prove PostgreSQL backup and restore.
+- Add CI, analyze the historical logs, replace the starter README, create the final architecture diagram, and complete submission evidence.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.

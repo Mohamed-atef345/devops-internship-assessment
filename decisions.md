@@ -83,6 +83,15 @@ Record at least 5 decisions. Include assumptions and limits.
 - Evidence / commit: the healthy run passed every check and observed both app identities; an unused-port run failed within two seconds with exit 1; `test: add bounded full-stack validation`.
 - Production improvement: publish machine-readable test output and run the same checks from an external monitoring location with authenticated access rather than relying only on the local Docker socket.
 
+## Decision 10 - Use a scoped Bash failure test with guaranteed cleanup
+
+- Choice: use one executable Bash script to stop `app-01`, measure 20 public `/instance` requests, restore the backend through an EXIT trap, and poll until the recovered identity serves traffic.
+- Why: the workflow is primarily Compose and HTTP orchestration, so Bash keeps the implementation direct while the cleanup trap protects the lab during failed assertions.
+- Alternative: retain the supplied Python placeholder or duplicate full-stack validation in the failure test; neither provides the required focused outage/recovery proof.
+- Trade-off: the script relies on local `curl`, `jq`, Docker access, and the required `app-01` name; every run briefly removes one backend and produces public access-log traffic.
+- Evidence / commit: the final run measured 20 successes, zero failures, `app-02` during the outage, and `app-01` after recovery; `test: add backend failure and recovery proof`.
+- Production improvement: run equivalent controlled failure experiments in a safe staging environment with service-level metrics, alert assertions, and broader failure modes.
+
 ## Decision
 - Choice:
 - Why:
