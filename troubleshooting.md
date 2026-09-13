@@ -988,6 +988,43 @@ ALL FAILURE TESTS PASSED
 
 ---
 
+## Entry 11 - 2026-09-13 17:37-18:03 EEST (14:37-15:03 UTC)
+
+### Scope and timing
+
+- Purpose: add the required GitHub Actions CI workflow and the optional application-image vulnerability scan.
+- File changed by the candidate: `.github/workflows/ci.yml`.
+- Work began at approximately `2026-09-13 17:37 EEST (+0300)` / `14:37 UTC` and ended at `18:03:49 EEST (+0300)` / `15:03:49 UTC`.
+
+### Implementation
+
+- The workflow runs on pushes and pull requests targeting `main`.
+- A repository Actions secret named `POSTGRES_PASSWORD` supplies the synthetic CI database password; the job creates a permission-restricted `.env` without printing the value.
+- One job performs Python, Bash, and Compose configuration checks, builds the images, starts the complete stack with a bounded health wait, and runs `validate.py`.
+- Trivy scans one application image for fixable HIGH and CRITICAL operating-system and library vulnerabilities. One image is sufficient because all app instances use the same Dockerfile and dependencies.
+- Cleanup runs with `if: always()` and removes only the CI Compose project's containers, networks, and disposable volumes.
+- No deployment job was added because this local assessment has no authorized deployment target.
+
+### Verification and remaining evidence
+
+```bash
+docker compose config -q
+git diff --check
+git status --short
+```
+
+- Local Compose configuration and whitespace checks passed.
+- The workflow remains unverified until this commit is pushed and its GitHub Actions run finishes successfully.
+- The final successful run URL must be added to `docs/EVIDENCE_INDEX.md`.
+
+### Conclusion
+
+- The workflow covers the required checkout, syntax/configuration, build, start, bounded wait, validation, failure propagation, and cleanup stages without duplicating failure or backup tests.
+- The Trivy step supplies the optional image-scan evidence and intentionally fails CI for fixable HIGH or CRITICAL findings.
+- Related commit: `ci: add full-stack workflow and image scan`.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.

@@ -61,6 +61,15 @@ python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 ```
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on pushes and pull requests targeting `main`. Configure a
+repository Actions secret named `POSTGRES_PASSWORD` before the first run. CI checks Python,
+Bash and Compose configuration, builds and starts the stack, waits for health, runs the
+full-stack validator, and scans one application image with Trivy for fixable HIGH or CRITICAL
+vulnerabilities. Cleanup always removes the disposable CI stack and volumes. No deployment job
+is included because this local assessment has no deployment target.
+
 ## Your work
 
 - Complete [assessment/TASK.md](assessment/TASK.md).

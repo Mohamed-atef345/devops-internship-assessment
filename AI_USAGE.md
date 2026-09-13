@@ -85,6 +85,15 @@ Write None if no AI was used. Otherwise record each use:
 - Documentation assistance: the assistant helped document the supplied results.
 - Related commit: `feat: add postgres backup and restore workflow`.
 
+## Use 10 - CI milestone documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: review the candidate's completed CI workflow, provide feedback on its structure and image-scan configuration, and document the milestone.
+- Files or decisions affected: `troubleshooting.md`, `decisions.md`, `security_review.md`, `README.md`, `docs/EVIDENCE_INDEX.md`, and `AI_USAGE.md` only.
+- What you changed or rejected: the assistant's file edits during this milestone were documentation only; it did not edit `.github/workflows/ci.yml`. It reviewed the candidate's workflow and the documentation distinguishes local checks from the still-pending GitHub Actions result.
+- How you independently verified it: reviewed the workflow, confirmed the Compose configuration parses locally, and ran `git diff --check`. The candidate remains responsible for configuring the GitHub secret, pushing the workflow, and linking the successful run.
+- Related commit: `ci: add full-stack workflow and image scan`.
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:

@@ -101,6 +101,15 @@ Record at least 5 decisions. Include assumptions and limits.
 - Evidence / commit: a 2.1 KiB ignored dump restored nine records; the pre-backup record remained, the post-backup record disappeared, readiness stayed healthy, and full validation passed; `feat: add postgres backup and restore workflow`.
 - Production improvement: encrypt backups, restrict permissions, store them off-host, define retention, schedule backups, monitor jobs, and regularly test recovery objectives against isolated restore targets.
 
+## Decision 12 - Keep CI in one job and scan one application image
+
+- Choice: use one GitHub Actions job for configuration checks, build, startup, validation, Trivy scanning, and cleanup; inject the CI-only database password through a repository secret.
+- Why: GitHub Actions jobs have separate workspaces, so one job keeps the generated `.env` and built images available without artifact transfer or repeated setup. All application instances share the same image contents, so scanning one avoids duplicate results.
+- Alternative: use separate jobs with repeated checkout and `.env` creation, or publish and transfer an image between jobs; both add complexity without improving this assessment.
+- Trade-off: the stages do not run in parallel, and the workflow cannot run successfully until `POSTGRES_PASSWORD` is configured. A HIGH or CRITICAL fixable vulnerability also blocks CI.
+- Evidence / commit: `.github/workflows/ci.yml`; `ci: add full-stack workflow and image scan`. Successful GitHub Actions run pending.
+- Production improvement: pin third-party Actions to reviewed commit SHAs, retain scan reports, define a reviewed exception process, and add deployment only when a real protected target exists.
+
 ## Decision
 - Choice:
 - Why:

@@ -1,0 +1,74 @@
+name: CI Pipeline
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Create .env
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          : "${POSTGRES_PASSWORD:?Set the POSTGRES_PASSWORD repository secret}"
+          umask 077
+          printf '%s\n' \
+            'PUBLIC_PORT=8080' \
+            'POSTGRES_USER=barq_app' \
+            'POSTGRES_DB=barq_tasks' \
+            "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" > .env
+
+      - name: Check syntax and configuration
+        run: |
+          python3 -m py_compile app/server.py validate.py
+          bash -n failure_test.sh backup.sh restore.sh
+          docker compose config -q
+
+      - name: Build application images
+        run: docker compose -p barq-assessment build
+
+      - name: Start services
+        run: |
+          docker compose -p barq-assessment up \
+            -d --wait --wait-timeout 120
+
+      - name: Run full-stack validation
+        run: python3 validate.py --project barq-assessment
+
+      - name: Find application image
+        id: app-image
+        run: |
+          IMAGE_ID=$(docker compose -p barq-assessment images -q app-01)
+          test -n "$IMAGE_ID"
+          echo "ref=$IMAGE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Scan application image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.app-image.outputs.ref }}
+          format: table
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Clean up
+        if: always()
+        run: |
+          docker compose -p barq-assessment down \
+            --volumes --remove-orphans

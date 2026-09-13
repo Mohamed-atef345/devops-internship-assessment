@@ -76,6 +76,14 @@ This is a review requirement, not the number of hidden faults.
 - How to verify: validate NGINX syntax, stop one app, require successful traffic through the other while NGINX stays healthy, restore the app, and prove both identities serve again.
 
 
+## Finding 10 - Application-image vulnerabilities need continuous detection
+
+- Risk and evidence: pinned base-image and Python-package versions can acquire disclosed vulnerabilities after the application is built, and local functional validation does not detect them.
+- Impact: a passing application could still contain exploitable operating-system or library packages.
+- Implemented fix / commit: the CI workflow scans one built application image with Trivy and fails on fixable HIGH or CRITICAL findings; `ci: add full-stack workflow and image scan`. Successful CI run pending.
+- Production follow-up: pin Actions to reviewed commit SHAs, retain machine-readable reports, define time-bounded exceptions, and rebuild images regularly so patched dependencies are adopted.
+- How to verify: inspect the Trivy table in the linked GitHub Actions run and confirm the scan step exits successfully before accepting the CI result.
+
 For each finding:
 - Risk and evidence:
 - Impact:
