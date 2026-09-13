@@ -110,6 +110,15 @@ Record at least 5 decisions. Include assumptions and limits.
 - Evidence / commit: commit `e751d08` added `.github/workflows/ci.yml`; its first run failed on two fixable HIGH PCRE2 findings. Commit `527f486` upgraded only `libpcre2-8-0`, and the complete second CI run passed, including full-stack validation and Trivy.
 - Production improvement: pin third-party Actions to reviewed commit SHAs, retain scan reports, define a reviewed exception process, and add deployment only when a real protected target exists.
 
+## Decision 13 - Count client requests by access-log request ID
+
+- Choice: canonical-deduplicate each source and use the final access-log record for each `request_id` as the client-request denominator; correlate application events and comma-separated upstream attempts as evidence for that request.
+- Why: one client request can produce multiple upstream attempts and application records, so counting raw lines would inflate traffic and failure totals.
+- Alternative: count every valid access, error, and application line, which would mix client outcomes with internal attempts and duplicated records.
+- Trade-off: this relies on access-log request IDs being present and trustworthy; the script reports conflicting IDs and malformed records so that limitation is visible.
+- Evidence / commit: the analysis found 720 distinct IDs with zero conflicts, 19 retried requests, and all ten questions are answered in `log_analysis.md`; `docs: complete historical log analysis`.
+- Production improvement: enforce request-ID generation and propagation at ingress and validate it in centralized structured logging.
+
 ## Decision
 - Choice:
 - Why:

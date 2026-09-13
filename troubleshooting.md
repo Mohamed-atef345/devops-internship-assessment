@@ -1072,6 +1072,47 @@ git status --short
 
 ---
 
+## Entry 14 - 2026-09-13 19:01-19:30 EEST (16:01-16:30 UTC)
+
+### Scope and implementation
+
+- Purpose: analyze the three unchanged historical logs and answer all ten questions in
+  `log_analysis.md` with reproducible evidence.
+- The assistant created `scripts/analyze_logs.py` at the candidate's request using only the Python
+  standard library.
+- The script parses JSON and NGINX text records, records malformed lines, removes exact/canonical
+  duplicates, and treats each access-log `request_id` as one client request so retries are not
+  double-counted.
+- It produces bounded-width terminal output covering file integrity, final status/error counts,
+  paths, backends, incident windows, latency, retries, cross-log correlation, classification, and
+  limitations.
+
+### Review and revisions
+
+- The candidate ran and reviewed the output several times and requested multiple changes.
+- The first readable-output revision used Markdown tables, which appeared misaligned as literal
+  Markdown in the terminal.
+- Based on the candidate's screenshots and feedback, the assistant replaced them with aligned ASCII
+  tables for compact data and wrapped labeled blocks for wide incident and request evidence.
+- The candidate then asked the assistant to use the final output to complete `log_analysis.md`.
+
+### Verification and findings
+
+- `python3 -m py_compile scripts/analyze_logs.py` passed.
+- `python3 scripts/analyze_logs.py` completed using all three logs.
+- It found 720 distinct requests, 105 final HTTP errors (14.58%), 95 final server errors (13.19%),
+  four incident windows, 19 successful retries, 54.0 ms median latency, and 2001.0 ms p95 latency.
+- The timeline correlates NGINX connection refusals and timeouts with Redis `TimeoutError`,
+  PostgreSQL `InvalidPassword`, and application request events.
+- `log_analysis.md` now answers all ten required questions and includes only the output excerpts
+  needed to support the results.
+- `git diff --check` passed after the documentation updates.
+- Related commit: `docs: complete historical log analysis` (the commit containing this work).
+- Remaining evidence: demonstrate one historical-log finding during the video and add its real
+  timestamp to `docs/EVIDENCE_INDEX.md`.
+
+---
+
 ## Blank entry template
 
 Copy this block for each later meaningful investigation.

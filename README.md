@@ -80,6 +80,18 @@ The [final architecture diagram](architecture.png) and its [explanation](docs/AR
 show the required three-app, port-8090 topology, network boundaries, persistent storage,
 health/readiness relationships, and remaining single points of failure.
 
+## Historical log analysis
+
+Run the reproducible standard-library analyzer from the repository root:
+
+```bash
+python3 scripts/analyze_logs.py
+```
+
+The completed [log analysis report](log_analysis.md) answers all ten required questions using
+deduplicated evidence from the access, NGINX error, and application logs. The originals in
+`logs/` remain unchanged.
+
 ## Your work
 
 - Complete [assessment/TASK.md](assessment/TASK.md).

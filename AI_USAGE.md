@@ -112,6 +112,16 @@ Write None if no AI was used. Otherwise record each use:
 - How you independently verified it: visually inspected the final PNG and confirmed that it shows the client, NGINX, three app identities, ports, frontend/backend networks, PostgreSQL, Redis, named storage, request flow, and health/readiness relationships. The final live topology remains video evidence.
 - Related commit: `docs: add final architecture diagram`.
 
+## Use 13 - Historical log-analysis script and documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: create a minimal Python analyzer for all ten required historical-log questions and help finalize the written analysis.
+- Time: `2026-09-13 19:01-19:30 EEST` (`16:01-16:30 UTC`).
+- Files or decisions affected: `scripts/analyze_logs.py`, `log_analysis.md`, `README.md`, `troubleshooting.md`, `docs/EVIDENCE_INDEX.md`, and `AI_USAGE.md`.
+- What you changed or rejected: the assistant created the initial standard-library Python script. The candidate reviewed its output and requested multiple revisions, including clearer wording, consistent terminal formatting, bounded-width ASCII tables, and readable incident/evidence blocks. The assistant applied those revisions and helped finalize `log_analysis.md`; the candidate retained responsibility for the submitted analysis.
+- How you independently verified it: the candidate ran and visually reviewed multiple script outputs and identified formatting problems through screenshots. The final script was compiled with Python, executed against all three unchanged logs, checked with `git diff --check`, and its report was mapped to every template question.
+- Related commit: `docs: complete historical log analysis` (the commit containing the script, report, and related documentation).
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:
