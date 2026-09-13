@@ -70,6 +70,10 @@ full-stack validator, and scans one application image with Trivy for fixable HIG
 vulnerabilities. Cleanup always removes the disposable CI stack and volumes. No deployment job
 is included because this local assessment has no deployment target.
 
+The first image scan found two fixable HIGH vulnerabilities in Debian's `libpcre2-8-0`.
+Commit `527f486` applies the targeted package upgrade; the subsequent full pipeline and blocking
+Trivy scan [completed successfully](https://github.com/Mohamed-atef345/devops-internship-assessment/actions/runs/34765059184).
+
 ## Your work
 
 - Complete [assessment/TASK.md](assessment/TASK.md).

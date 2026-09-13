@@ -94,6 +94,15 @@ Write None if no AI was used. Otherwise record each use:
 - How you independently verified it: reviewed the workflow, confirmed the Compose configuration parses locally, and ran `git diff --check`. The candidate remains responsible for configuring the GitHub secret, pushing the workflow, and linking the successful run.
 - Related commit: `ci: add full-stack workflow and image scan`.
 
+## Use 11 - CI failure and remediation documentation
+
+- Tool/model: OpenAI Codex assistant.
+- Purpose: document the candidate's failed image scan, targeted package remediation, and successful CI retest from the supplied logs, screenshot, repository history, and public Actions metadata.
+- Files or decisions affected: `troubleshooting.md`, `decisions.md`, `security_review.md`, `README.md`, `docs/EVIDENCE_INDEX.md`, and `AI_USAGE.md` only.
+- What you changed or rejected: the assistant changed documentation only. It did not edit the Dockerfile or workflow; the candidate applied and committed the PCRE2 package upgrade and supplied the result.
+- How you independently verified it: confirmed commits `e751d08` and `527f486` locally, inspected the Dockerfile change, reviewed the two Trivy findings, and verified through GitHub Actions metadata that every step in run #2 completed successfully.
+- Related commits: `e751d08` (`ci: add full-stack workflow and image scan`) and `527f486` (`fix: upgrade vulnerable pcre2 package`).
+
 - Tool/model:
 - Purpose:
 - Files or decisions affected:

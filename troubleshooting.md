@@ -1005,7 +1005,7 @@ ALL FAILURE TESTS PASSED
 - Cleanup runs with `if: always()` and removes only the CI Compose project's containers, networks, and disposable volumes.
 - No deployment job was added because this local assessment has no authorized deployment target.
 
-### Verification and remaining evidence
+### Initial verification
 
 ```bash
 docker compose config -q
@@ -1014,14 +1014,44 @@ git status --short
 ```
 
 - Local Compose configuration and whitespace checks passed.
-- The workflow remains unverified until this commit is pushed and its GitHub Actions run finishes successfully.
-- The final successful run URL must be added to `docs/EVIDENCE_INDEX.md`.
+- Commit `e751d08` triggered [CI run #1](https://github.com/Mohamed-atef345/devops-internship-assessment/actions/runs/34764720196). Syntax, build, startup, and full-stack validation passed, but the Trivy security gate failed.
+- The failure and successful remediation are recorded in Entry 12.
 
 ### Conclusion
 
 - The workflow covers the required checkout, syntax/configuration, build, start, bounded wait, validation, failure propagation, and cleanup stages without duplicating failure or backup tests.
 - The Trivy step supplies the optional image-scan evidence and intentionally fails CI for fixable HIGH or CRITICAL findings.
-- Related commit: `ci: add full-stack workflow and image scan`.
+- Related commit: `e751d08` (`ci: add full-stack workflow and image scan`).
+
+---
+
+## Entry 12 - 2026-09-13 18:10-18:17 EEST (15:10-15:17 UTC)
+
+### Symptom and evidence
+
+- Purpose: diagnose the first CI failure, remediate the reported image vulnerabilities, and prove the complete pipeline.
+- [CI run #1](https://github.com/Mohamed-atef345/devops-internship-assessment/actions/runs/34764720196) for commit `e751d08` failed after 59 seconds at the Trivy image-scan step.
+- Trivy found two fixable HIGH vulnerabilities in Debian package `libpcre2-8-0`: `CVE-2026-86145` and `CVE-2026-89161`.
+- The image contained version `10.42-1`; Debian provided fixed version `10.42-1+deb12u1`. Because the scan uses `exit-code: "1"`, a fixable HIGH finding correctly failed CI.
+
+### Root cause and fix
+
+- Root cause: the pinned `python:3.12-slim-bookworm` base image still contained the vulnerable PCRE2 package even though its index digest was current.
+- Fix: before creating the unprivileged user, the Dockerfile now refreshes Debian package metadata, upgrades only `libpcre2-8-0`, and removes the package lists from the resulting layer.
+- The targeted upgrade keeps the security gate enabled instead of hiding the findings or making Trivy non-blocking.
+
+### Retest evidence
+
+- Commit `527f486` (`fix: upgrade vulnerable pcre2 package`) triggered [CI run #2](https://github.com/Mohamed-atef345/devops-internship-assessment/actions/runs/34765059184).
+- GitHub reports that run #2 completed successfully in 45 seconds, from `2026-09-13 15:15:34 UTC` to `15:16:19 UTC`.
+- Checkout, secret-backed `.env` creation, syntax and Compose checks, image build, bounded service startup, full-stack validation, image discovery, Trivy scanning, and cleanup all completed successfully.
+- The candidate's investigation and retest window was approximately `18:10-18:17 EEST` / `15:10-15:17 UTC`.
+
+### Conclusion
+
+- The required CI path and optional blocking image scan now pass for commit `527f486`.
+- This is pre-video evidence for the current two-app, port-8080 state. The final three-app, port-8090 commit still requires its own matching CI run.
+- Related commits: `e751d08` (workflow and initial failed scan) and `527f486` (package remediation and successful pipeline).
 
 ---
 

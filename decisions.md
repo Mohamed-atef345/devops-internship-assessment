@@ -107,7 +107,7 @@ Record at least 5 decisions. Include assumptions and limits.
 - Why: GitHub Actions jobs have separate workspaces, so one job keeps the generated `.env` and built images available without artifact transfer or repeated setup. All application instances share the same image contents, so scanning one avoids duplicate results.
 - Alternative: use separate jobs with repeated checkout and `.env` creation, or publish and transfer an image between jobs; both add complexity without improving this assessment.
 - Trade-off: the stages do not run in parallel, and the workflow cannot run successfully until `POSTGRES_PASSWORD` is configured. A HIGH or CRITICAL fixable vulnerability also blocks CI.
-- Evidence / commit: `.github/workflows/ci.yml`; `ci: add full-stack workflow and image scan`. Successful GitHub Actions run pending.
+- Evidence / commit: commit `e751d08` added `.github/workflows/ci.yml`; its first run failed on two fixable HIGH PCRE2 findings. Commit `527f486` upgraded only `libpcre2-8-0`, and the complete second CI run passed, including full-stack validation and Trivy.
 - Production improvement: pin third-party Actions to reviewed commit SHAs, retain scan reports, define a reviewed exception process, and add deployment only when a real protected target exists.
 
 ## Decision

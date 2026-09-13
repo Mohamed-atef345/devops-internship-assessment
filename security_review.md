@@ -78,11 +78,11 @@ This is a review requirement, not the number of hidden faults.
 
 ## Finding 10 - Application-image vulnerabilities need continuous detection
 
-- Risk and evidence: pinned base-image and Python-package versions can acquire disclosed vulnerabilities after the application is built, and local functional validation does not detect them.
+- Risk and evidence: the first Trivy run found `CVE-2026-86145` and `CVE-2026-89161` in Debian package `libpcre2-8-0` version `10.42-1`. Both were HIGH severity and had fixed version `10.42-1+deb12u1`; local functional validation had passed without detecting them.
 - Impact: a passing application could still contain exploitable operating-system or library packages.
-- Implemented fix / commit: the CI workflow scans one built application image with Trivy and fails on fixable HIGH or CRITICAL findings; `ci: add full-stack workflow and image scan`. Successful CI run pending.
+- Implemented fix / commit: commit `e751d08` added a blocking HIGH/CRITICAL Trivy scan. Commit `527f486` added a targeted `libpcre2-8-0` upgrade in the Dockerfile; the next complete CI run, including Trivy, passed.
 - Production follow-up: pin Actions to reviewed commit SHAs, retain machine-readable reports, define time-bounded exceptions, and rebuild images regularly so patched dependencies are adopted.
-- How to verify: inspect the Trivy table in the linked GitHub Actions run and confirm the scan step exits successfully before accepting the CI result.
+- How to verify: compare failed [run #1](https://github.com/Mohamed-atef345/devops-internship-assessment/actions/runs/34764720196) with successful [run #2](https://github.com/Mohamed-atef345/devops-internship-assessment/actions/runs/34765059184); the second run's full-stack validation and image-scan steps both completed successfully.
 
 For each finding:
 - Risk and evidence:
